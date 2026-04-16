@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hunter Hub</title>
+<style>
+  :root {
+    --blue:   #007AFF; --green:  #34C759; --red:    #FF3B30;
+    --orange: #FF9500; --purple: #AF52DE; --teal:   #5AC8FA;
+    --label:  #000; --label2: rgba(60,60,67,.6); --label3: rgba(60,60,67,.3);
+    --fill:   rgba(120,120,128,.12); --fill2: rgba(120,120,128,.16);
+    --separator: rgba(60,60,67,.29);
+    --bg: #F2F2F7; --grouped: #FFF;
+    --radius: 10px; --radius-lg: 13px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { font-family: -apple-system,'PingFang SC','Helvetica Neue',sans-serif; background: var(--bg); color: var(--label); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+  /* ─── Navbar ─── */
+  .navbar { position: sticky; top: 0; z-index: 100; background: rgba(242,242,247,.9); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: .5px solid var(--separator); }
+  .nav-inner { display: flex; align-items: center; height: 52px; padding: 0 16px; gap: 10px; }
+  .nav-back { display: none; align-items: center; gap: 4px; background: none; border: none; color: var(--blue); font-family: inherit; font-size: 16px; cursor: pointer; padding: 0; margin-right: 4px; }
+  .nav-back svg { width: 10px; height: 16px; }
+  .nav-back.show { display: flex; }
+  .nav-title    { font-size: 17px; font-weight: 600; letter-spacing: -.4px; flex: 1; }
+  .nav-subtitle { font-size: 13px; color: var(--label2); flex-shrink: 0; }
+
+  /* ─── User badge & admin btn ─── */
+  .user-badge {
+    display: none; align-items: center; height: 28px; padding: 0 10px;
+    background: var(--fill); border-radius: 14px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    flex-shrink: 0; gap: 4px;
+  }
+  .admin-nav-btn {
+    display: none; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,149,0,.15); border: none;
+    font-size: 16px; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* ─── Search ─── */
+  .search-bar { padding: 6px 16px 10px; background: rgba(242,242,247,.9); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+  .search-inner { display: flex; align-items: center; height: 36px; background: var(--fill); border-radius: 10px; padding: 0 10px; gap: 6px; }
+  .search-icon-svg { width: 16px; height: 16px; fill: var(--label3); flex-shrink: 0; }
+  .search-input { flex: 1; border: none; background: transparent; font-size: 15px; color: var(--label); font-family: inherit; outline: none; }
+  .search-input::placeholder { color: var(--label3); }
+  .search-clear-btn { background: var(--label3); border: none; width: 18px; height: 18px; border-radius: 50%; display: none; align-items: center; justify-content: center; cursor: pointer; }
+  .search-clear-btn svg { width: 10px; height: 10px; fill: white; }
+
+  /* ─── Scope bar ─── */
+  .scope-bar { display: flex; gap: 8px; padding: 0 16px 10px; overflow-x: auto; scrollbar-width: none; background: rgba(242,242,247,.9); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+  .scope-bar::-webkit-scrollbar { display: none; }
+  .scope-chip { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 14px; background: var(--fill); font-size: 13px; font-weight: 500; color: var(--label2); white-space: nowrap; cursor: pointer; flex-shrink: 0; border: none; font-family: inherit; }
+  .scope-chip.active { background: var(--blue); color: #fff; }
+
+  /* ─── Views ─── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ════ HOME ════ */
+  .home-content { padding: 16px 16px 40px; }
+
+  /* 我的名单 */
+  .mylist-card {
+    background: var(--grouped);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .mylist-card:active { opacity: .75; }
+  .mylist-header {
+    display: flex; align-items: center;
+    padding: 13px 14px 11px; gap: 10px;
+    border-bottom: .5px solid var(--separator);
+  }
+  .mylist-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--blue); display: flex; align-items: center;
+    justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .mylist-heading { font-size: 15px; font-weight: 600; flex: 1; }
+  .mylist-count-badge {
+    background: var(--blue); color: white;
+    font-size: 12px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px; min-width: 24px; text-align: center;
+  }
+  .mylist-count-badge.empty { background: var(--fill); color: var(--label2); }
+  .mylist-chevron { color: var(--label3); font-size: 14px; margin-left: 4px; }
+  .mylist-rows { padding: 4px 0; }
+  .mylist-row {
+    display: flex; align-items: center;
+    padding: 9px 14px; gap: 10px;
+    position: relative;
+  }
+  .mylist-row + .mylist-row::before {
+    content: ''; position: absolute;
+    top: 0; left: 50px; right: 0; height: .5px;
+    background: var(--separator);
+  }
+  .mylist-row-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0; margin-left: 4px;
+  }
+  .mylist-row-name { font-size: 14px; flex: 1; color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mylist-row-badge { flex-shrink: 0; }
+  .mylist-more { font-size: 13px; color: var(--label2); padding: 8px 14px 11px; }
+  .mylist-empty { font-size: 14px; color: var(--label2); padding: 14px 14px; line-height: 1.5; }
+
+  /* Stats grid */
+  .section-label { font-size: 13px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--grouped); border-radius: var(--radius-lg); padding: 14px 14px 12px; cursor: pointer; transition: opacity .15s; position: relative; overflow: hidden; }
+  .stat-card:active { opacity: .75; }
+  .stat-card-bar   { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .stat-card-num   { font-size: 26px; font-weight: 700; letter-spacing: -1px; line-height: 1.1; margin-bottom: 4px; }
+  .stat-card-label { font-size: 12px; color: var(--label2); font-weight: 500; line-height: 1.4; }
+
+  /* Bonded zone featured */
+  .bonded-card {
+    background: linear-gradient(135deg, #FF6B35 0%, #FF9500 100%);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: opacity .15s;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .bonded-card:active { opacity: .85; }
+  .bonded-icon { font-size: 32px; flex-shrink: 0; }
+  .bonded-body { flex: 1; }
+  .bonded-tag  { display: inline-block; background: rgba(255,255,255,.25); color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; margin-bottom: 5px; letter-spacing: .05em; text-transform: uppercase; }
+  .bonded-title { font-size: 17px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .bonded-sub   { font-size: 12px; color: rgba(255,255,255,.8); line-height: 1.4; }
+  .bonded-count { text-align: right; flex-shrink: 0; }
+  .bonded-num   { font-size: 28px; font-weight: 700; color: white; line-height: 1; }
+  .bonded-unit  { font-size: 12px; color: rgba(255,255,255,.8); }
+
+  /* Combo list */
+  .combo-group { background: var(--grouped); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 20px; }
+  .combo-row { display: flex; align-items: center; padding: 13px 14px; gap: 12px; cursor: pointer; position: relative; transition: background .1s; }
+  .combo-row:active { background: var(--fill); }
+  .combo-row + .combo-row::before { content: ''; position: absolute; top: 0; left: 54px; right: 0; height: .5px; background: var(--separator); }
+  .combo-icon  { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+  .combo-body  { flex: 1; min-width: 0; }
+  .combo-title { font-size: 15px; font-weight: 500; }
+  .combo-sub   { font-size: 12px; color: var(--label2); margin-top: 1px; }
+  .combo-count { font-size: 15px; font-weight: 600; color: var(--label2); margin-right: 4px; flex-shrink: 0; }
+  .combo-chevron { color: var(--label3); font-size: 14px; transition: transform .2s; }
+
+  /* ════ LIST ════ */
+  .list-content { padding: 0 0 100px; }
+  .section-header { padding: 18px 16px 6px; font-size: 13px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: .06em; }
+  .list-group { margin: 0 16px; background: var(--grouped); border-radius: var(--radius-lg); overflow: hidden; }
+  .list-row { display: flex; align-items: center; padding: 11px 14px; gap: 12px; cursor: pointer; position: relative; transition: background .1s; }
+  .list-row:active { background: var(--fill); }
+  .list-row + .list-row::before { content: ''; position: absolute; top: 0; left: 62px; right: 0; height: .5px; background: var(--separator); }
+  .row-icon    { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
+  .row-body    { flex: 1; min-width: 0; }
+  .row-title   { font-size: 15px; font-weight: 500; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-sub     { font-size: 13px; color: var(--label2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-right   { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .row-chevron { color: var(--label3); font-size: 14px; margin-left: 4px; }
+  .load-more   { text-align: center; padding: 20px; font-size: 14px; color: var(--blue); cursor: pointer; font-weight: 500; }
+
+  /* ─── Badges ─── */
+  .badge { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+  .badge-import  { background: rgba(0,122,255,.12);  color: var(--blue); }
+  .badge-hedge   { background: rgba(175,82,222,.15); color: var(--purple); }
+  .badge-bonded  { background: rgba(255,149,0,.15);  color: #c47500; }
+  .badge-scale-L  { background: rgba(255,59,48,.1);  color: var(--red); }
+  .badge-scale-M  { background: rgba(255,149,0,.1);  color: var(--orange); }
+  .badge-scale-S  { background: rgba(52,199,89,.1);  color: #1a9c3e; }
+  .badge-scale-XS { background: var(--fill);         color: var(--label2); }
+
+  /* ─── Empty ─── */
+  .empty-state { display: none; text-align: center; padding: 80px 30px; }
+  .empty-glyph { width: 64px; height: 64px; margin: 0 auto 16px; background: var(--fill); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+  .empty-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .empty-sub   { font-size: 15px; color: var(--label2); }
+
+  /* ─── Detail Sheet ─── */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .28s; }
+  .overlay.show { opacity: 1; pointer-events: all; }
+  .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-radius: 12px 12px 0 0; z-index: 201; max-height: 94vh; display: flex; flex-direction: column; transform: translateY(100%); transition: transform .32s cubic-bezier(.4,0,.2,1); }
+  .sheet.show { transform: translateY(0); }
+  .sheet-puller { width: 36px; height: 4px; background: var(--label3); border-radius: 2px; margin: 8px auto 0; flex-shrink: 0; }
+  .sheet-nav { display: flex; align-items: center; padding: 12px 16px 10px; border-bottom: .5px solid var(--separator); flex-shrink: 0; }
+  .sheet-nav-title { flex: 1; font-size: 17px; font-weight: 600; padding-right: 8px; }
+  .sheet-close-btn { width: 30px; height: 30px; border-radius: 50%; background: var(--fill2); border: none; font-size: 16px; color: var(--label2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .sheet-scroll { overflow-y: auto; flex: 1; padding: 0 0 40px; -webkit-overflow-scrolling: touch; }
+  .detail-section { margin: 20px 16px 0; }
+  .detail-section-title { font-size: 13px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .detail-group { background: var(--grouped); border-radius: var(--radius-lg); overflow: hidden; }
+  .detail-row { display: flex; align-items: flex-start; padding: 11px 14px; gap: 10px; position: relative; }
+  .detail-row + .detail-row::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--separator); }
+  .detail-row-label { font-size: 14px; color: var(--label2); flex-shrink: 0; width: 76px; }
+  .detail-row-value { font-size: 14px; color: var(--label); flex: 1; word-break: break-all; line-height: 1.45; }
+  .detail-row-value a { color: var(--blue); text-decoration: none; }
+  .detail-tag-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; background: var(--grouped); border-radius: var(--radius-lg); margin: 20px 16px 0; }
+  .scope-block { margin: 20px 16px 0; background: var(--grouped); border-radius: var(--radius-lg); padding: 12px 14px; font-size: 14px; line-height: 1.6; color: var(--label); }
+
+  /* 加入名单按钮 */
+  .add-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 16px 16px 0;
+    height: 50px; border-radius: var(--radius-lg); border: none;
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s; width: calc(100% - 32px);
+  }
+  .add-btn:active { opacity: .8; }
+  .add-btn.add    { background: var(--blue); color: white; }
+  .add-btn.added  { background: var(--fill2); color: var(--label2); }
+
+  /* 话术卡片 */
+  .pitch-card { margin: 20px 16px 0; border-radius: var(--radius-lg); padding: 12px 14px; }
+  .pitch-card.bonded  { background: rgba(255,149,0,.1); }
+  .pitch-card.import  { background: rgba(0,122,255,.08); }
+  .pitch-card.hedge   { background: rgba(175,82,222,.08); }
+  .pitch-card.default { background: var(--fill); }
+  .pitch-card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .pitch-card.bonded  .pitch-card-title { color: #c47500; }
+  .pitch-card.import  .pitch-card-title { color: var(--blue); }
+  .pitch-card.hedge   .pitch-card-title { color: var(--purple); }
+  .pitch-card.default .pitch-card-title { color: var(--label2); }
+  .pitch-card-text { font-size: 14px; line-height: 1.6; color: var(--label); }
+
+  /* ─── FAB ─── */
+  .fab { position: fixed; bottom: 24px; right: 16px; z-index: 150; height: 44px; padding: 0 18px; border-radius: 22px; border: none; background: var(--blue); color: white; font-family: inherit; font-size: 15px; font-weight: 600; display: none; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,122,255,.38); transition: transform .1s; }
+  .fab.show { display: flex; }
+  .fab:active { transform: scale(.96); }
+  .fab-badge { background: rgba(255,255,255,.28); border-radius: 10px; padding: 1px 6px; font-size: 11px; font-weight: 700; display: none; }
+
+  /* ─── Filter Sheet ─── */
+  .f-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 210; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .f-overlay.show { opacity: 1; pointer-events: all; }
+  .f-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-radius: 12px 12px 0 0; z-index: 211; max-height: 82vh; display: flex; flex-direction: column; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+  .f-sheet.show { transform: translateY(0); }
+  .f-sheet-nav { display: flex; align-items: center; padding: 14px 16px 12px; border-bottom: .5px solid var(--separator); flex-shrink: 0; }
+  .f-sheet-title { flex: 1; font-size: 17px; font-weight: 600; }
+  .f-sheet-scroll { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+  .f-section { padding: 16px 16px 0; }
+  .f-section-title { font-size: 13px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .f-chips { display: flex; flex-wrap: wrap; gap: 7px; padding-bottom: 16px; border-bottom: .5px solid var(--separator); }
+  .f-chips:last-child { border-bottom: none; }
+  .f-chip { height: 32px; padding: 0 13px; border-radius: 16px; background: var(--fill); border: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer; transition: background .12s; }
+  .f-chip.active { background: var(--blue); color: white; }
+  .f-actions { display: flex; gap: 10px; padding: 12px 16px 30px; border-top: .5px solid var(--separator); flex-shrink: 0; }
+  .f-btn-reset { flex: 1; height: 50px; border-radius: var(--radius-lg); border: none; background: var(--fill2); font-family: inherit; font-size: 16px; font-weight: 500; color: var(--label2); cursor: pointer; }
+  .f-btn-apply { flex: 2; height: 50px; border-radius: var(--radius-lg); border: none; background: var(--blue); font-family: inherit; font-size: 16px; font-weight: 600; color: white; cursor: pointer; }
+
+  /* ════ 本日推荐 ════ */
+  .rec-section { margin-bottom: 20px; }
+  .rec-card {
+    border-radius: var(--radius-lg); overflow: hidden;
+    margin-bottom: 10px; cursor: pointer;
+    transition: opacity .3s, max-height .3s, margin .3s;
+    max-height: 600px;
+  }
+  .rec-card:active { opacity: .8; }
+  .rec-card.dismissed { opacity: 0; max-height: 0; margin-bottom: 0; pointer-events: none; }
+  .rec-dismiss-btn {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(0,0,0,.08); border: none;
+    font-size: 13px; color: var(--label2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; line-height: 1;
+  }
+  .rec-dismiss-btn:active { background: rgba(0,0,0,.15); }
+
+  /* 方案 B：全卡片淡漸層 */
+  .rec-card.gold {
+    background: linear-gradient(145deg, #FFF8EC 0%, #FFF3E0 100%);
+    border: 1.5px solid rgba(255,149,0,.28);
+  }
+  .rec-card.gold .rec-card-header { border-bottom: 1px solid rgba(255,149,0,.15); }
+  .rec-card.gold .rec-icon-wrap {
+    background: linear-gradient(135deg,#FF9500,#FF6B35);
+    box-shadow: 0 3px 10px rgba(255,149,0,.38);
+  }
+  .rec-card.gold .rec-sub   { color: #c47500; }
+  .rec-card.gold .rec-count-badge { background: rgba(255,149,0,.18); color: #c47500; }
+
+  .rec-card.teal {
+    background: linear-gradient(145deg, #F0FFF4 0%, #E8FFF0 100%);
+    border: 1.5px solid rgba(52,199,89,.28);
+  }
+  .rec-card.teal .rec-card-header { border-bottom: 1px solid rgba(52,199,89,.15); }
+  .rec-card.teal .rec-icon-wrap {
+    background: linear-gradient(135deg,#34C759,#00C7BE);
+    box-shadow: 0 3px 10px rgba(52,199,89,.38);
+  }
+  .rec-card.teal .rec-sub   { color: #1a9c3e; }
+  .rec-card.teal .rec-count-badge { background: rgba(52,199,89,.18); color: #1a9c3e; }
+
+  /* 第三張保持白底 */
+  .rec-card.neutral { background: var(--grouped); }
+  .rec-card.neutral .rec-card-header { border-bottom: .5px solid var(--separator); }
+  .rec-card.neutral .rec-icon-wrap { background: rgba(0,122,255,.12); }
+  .rec-card.neutral .rec-sub   { color: var(--label2); }
+  .rec-card.neutral .rec-count-badge { background: var(--fill); color: var(--label2); }
+
+  .rec-card-header {
+    display: flex; align-items: center;
+    padding: 13px 14px 11px; gap: 12px;
+  }
+  .rec-icon-wrap {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .rec-header-body { flex: 1; min-width: 0; }
+  .rec-title { font-size: 15px; font-weight: 700; color: var(--label); }
+  .rec-sub   { font-size: 12px; margin-top: 2px; }
+  .rec-count-badge {
+    border-radius: 12px; padding: 3px 10px;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .rec-rows { padding: 2px 0; }
+  .rec-row {
+    display: flex; align-items: center;
+    padding: 8px 14px; gap: 10px; position: relative;
+    background: transparent;
+  }
+  .rec-row + .rec-row::before {
+    content: ''; position: absolute;
+    top: 0; left: 48px; right: 0; height: .5px;
+    background: var(--separator);
+  }
+  .rec-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: 4px; }
+  .rec-name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ════ LOGIN SCREEN ════ */
+  .login-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .3s;
+  }
+  .login-box {
+    background: var(--grouped);
+    border-radius: 20px;
+    padding: 32px 24px 28px;
+    width: calc(100% - 48px);
+    max-width: 360px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.10);
+  }
+  .login-logo  { font-size: 44px; text-align: center; margin-bottom: 10px; }
+  .login-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+  .login-sub   { font-size: 14px; color: var(--label2); text-align: center; margin-bottom: 24px; line-height: 1.5; }
+  .login-input {
+    width: 100%; height: 50px; border-radius: var(--radius-lg);
+    border: 1.5px solid var(--separator); background: var(--bg);
+    font-family: inherit; font-size: 16px; color: var(--label);
+    padding: 0 14px; outline: none; display: block;
+    transition: border-color .2s;
+  }
+  .login-input:focus { border-color: var(--blue); }
+  .login-pwd-wrap {
+    overflow: hidden; max-height: 0;
+    transition: max-height .25s ease, margin .25s ease;
+    margin-top: 0;
+  }
+  .login-pwd-wrap.show { max-height: 70px; margin-top: 10px; }
+  .login-btn {
+    width: 100%; height: 50px; border-radius: var(--radius-lg);
+    border: none; background: var(--blue); color: white;
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s; margin-top: 14px;
+  }
+  .login-btn:disabled { opacity: .6; cursor: default; }
+  .login-btn:active:not(:disabled) { opacity: .8; }
+  .login-error {
+    font-size: 13px; color: var(--red); text-align: center;
+    min-height: 18px; margin-top: 8px;
+  }
+
+  /* ════ ADMIN VIEW ════ */
+  .admin-content { padding: 16px 16px 80px; }
+  .admin-stat-row {
+    display: flex; gap: 10px; margin-bottom: 16px;
+  }
+  .admin-stat {
+    flex: 1; background: var(--grouped); border-radius: var(--radius-lg);
+    padding: 14px; text-align: center;
+  }
+  .admin-stat-num   { font-size: 24px; font-weight: 700; color: var(--blue); }
+  .admin-stat-label { font-size: 12px; color: var(--label2); margin-top: 2px; }
+  .admin-detail-panel {
+    display: none;
+    background: var(--bg);
+    padding: 0 16px 10px;
+  }
+  .admin-detail-panel .list-row {
+    background: var(--grouped);
+    border-radius: 8px;
+    margin-bottom: 1px;
+  }
+  .admin-detail-panel .list-row::before { display: none; }
+  .admin-empty-tip {
+    padding: 12px 0; color: var(--label2); font-size: 14px;
+  }
+  .admin-refresh-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin: 0 0 16px; height: 40px; border-radius: var(--radius-lg);
+    border: none; background: var(--fill); font-family: inherit;
+    font-size: 14px; font-weight: 500; color: var(--label2); cursor: pointer;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN SCREEN ════ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🎯</div>
+    <div class="login-title">Hunter Hub</div>
+    <div class="login-sub">输入您的名字即可进入</div>
+    <input class="login-input" id="loginName" type="text" placeholder="您的名字" autocomplete="off" />
+    <div class="login-pwd-wrap" id="loginPwdWrap">
+      <input class="login-input" id="loginPassword" type="password" placeholder="管理者密码" />
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">进入</button>
+  </div>
+</div>
+
+<!-- ─── Navbar ─── -->
+<div class="navbar">
+  <div class="nav-inner">
+    <button class="nav-back" id="navBack">
+      <svg viewBox="0 0 10 16" fill="none"><path d="M8.5 1L1.5 8L8.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      返回
+
+    </button>
+    <span class="nav-title" id="navTitle">Hunter Hub</span>
+    <span class="nav-subtitle" id="navSubtitle"></span>
+    <button class="admin-nav-btn" id="adminNavBtn" title="管理者总览" onclick="enterAdminView()">👑</button>
+    <div class="user-badge" id="userBadge" onclick="confirmLogout()"></div>
+  </div>
+  <div class="search-bar" id="searchBar" style="display:none">
+    <div class="search-inner">
+      <svg class="search-icon-svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+      <input class="search-input" id="searchInput" type="search" placeholder="搜索公司、法人代表、城市…" autocomplete="off">
+      <button class="search-clear-btn" id="searchClear">
+        <svg viewBox="0 0 10 10"><path d="M1 1l8 8M9 1L1 9" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="scope-bar" id="scopeBar"></div>
+</div>
+
+<!-- ════ HOME ════ -->
+<div class="view active" id="homeView">
+  <div class="home-content">
+
+    <!-- 我的名单 -->
+    <div class="mylist-card" id="mylistCard" onclick="enterMyList()">
+      <div class="mylist-header">
+        <div class="mylist-icon">🎯</div>
+        <span class="mylist-heading">我的名单</span>
+        <span class="mylist-count-badge empty" id="mylistBadge">0</span>
+        <span class="mylist-chevron">›</span>
+      </div>
+      <div id="mylistPreview"></div>
+    </div>
+
+    <!-- 本日推荐 -->
+    <div id="recommendSection"></div>
+
+    <!-- 保稅區 參考目標 -->
+    <div class="section-label">参考目标</div>
+    <div class="bonded-card" onclick="enterCombo('保税区')">
+      <div class="bonded-icon">🏭</div>
+      <div class="bonded-body">
+        <div class="bonded-tag">外汇需求最确定</div>
+        <div class="bonded-title">福田保税区企业</div>
+        <div class="bonded-sub">进出口业务密集，每笔货物必涉及外汇结算</div>
+      </div>
+      <div class="bonded-count">
+        <div class="bonded-num">96</div>
+        <div class="bonded-unit">家</div>
+      </div>
+    </div>
+
+    <!-- 数据来源 -->
+    <div class="section-label">数据来源</div>
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- 组合筛选 -->
+    <div class="section-label">组合筛选</div>
+    <div class="combo-group" id="comboGroup"></div>
+
+  </div>
+</div>
+
+<!-- ════ LIST ════ -->
+<div class="view" id="listView">
+  <div class="list-content">
+    <div class="section-header" id="sectionHeader"></div>
+    <div class="list-group" id="listGroup"></div>
+    <div id="loadMore"></div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-glyph">🔍</div>
+      <div class="empty-title">未找到结果</div>
+      <div class="empty-sub">请尝试调整筛选条件或搜索关键词</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ADMIN VIEW ════ -->
+<div class="view" id="adminView">
+  <div class="admin-content" id="adminContent">
+    <div style="padding:60px;text-align:center;color:var(--label2)">加载中…</div>
+  </div>
+</div>
+
+<!-- ─── FAB ─── -->
+<button class="fab" id="fabBtn">
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/></svg>
+  筛选
+  <span class="fab-badge" id="fabBadge"></span>
+</button>
+
+<!-- ─── Detail Sheet ─── -->
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-puller"></div>
+  <div class="sheet-nav">
+    <div class="sheet-nav-title" id="sheetTitle"></div>
+    <button class="sheet-close-btn" id="sheetClose">✕</button>
+  </div>
+  <div class="sheet-scroll" id="sheetBody"></div>
+</div>
+
+<!-- ─── Filter Sheet ─── -->
+<div class="f-overlay" id="fOverlay"></div>
+<div class="f-sheet" id="fSheet">
+  <div class="f-sheet-nav">
+    <span class="f-sheet-title">筛选</span>
+    <button class="sheet-close-btn" id="fSheetClose">✕</button>
+  </div>
+  <div class="f-sheet-scroll">
+    <div class="f-section">
+      <div class="f-section-title">城市</div>
+      <div class="f-chips" id="fCity"></div>
+    </div>
+    <div class="f-section" id="fDistrictSection" style="display:none">
+      <div class="f-section-title">地区</div>
+      <div class="f-chips" id="fDistrict"></div>
+    </div>
+    <div class="f-section">
+      <div class="f-section-title">企业规模</div>
+      <div class="f-chips" id="fScale"></div>
+    </div>
+  </div>
+  <div class="f-actions">
+    <button class="f-btn-reset" id="fBtnReset">清除</button>
+    <button class="f-btn-apply" id="fBtnApply">应用</button>
+  </div>
+</div>
+
+<script>
+// ─── Config ───
+const API_BASE = ''; // 同網域，空字串即可
+
+// ─── State ───
+let allData = [], filtered = [], page = 0;
+let myList    = [];          // server-synced，不寫 localStorage
+let claimedIds = new Set();  // 所有人名单中已有的 company_id
+let currentUser = null;      // { id, name, is_admin }
+const PAGE_SIZE = 40;
+let searchQ = '';
+let activeF  = { city:[], district:[], scale:[] };
+let pendingF = { city:[], district:[], scale:[] };
+let currentCombo = null;
+
+const CITY_DISTRICTS = {
+  '深圳市': ['光明区','南山区','坪山区','宝安区','盐田区','福田区','罗湖区','龙华区','龙岗区'],
+  '广州市': ['从化区','南沙区','增城区','天河区','海珠区','番禺区','白云区','花都区','荔湾区','越秀区','黄埔区'],
+  '惠州市': ['博罗县','惠东县','惠城区','惠阳区'],
+};
+
+// ════ LOGIN ════
+async function doLogin() {
+  const nameEl = document.getElementById('loginName');
+  const pwdEl  = document.getElementById('loginPassword');
+  const errEl  = document.getElementById('loginError');
+  const btn    = document.getElementById('loginBtn');
+
+  const name     = nameEl.value.trim();
+  const password = pwdEl.value;
+
+  if (!name) { errEl.textContent = '请输入名字'; return; }
+
+  btn.disabled = true; btn.textContent = '登录中…'; errEl.textContent = '';
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/login`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name, ...(password ? { password } : {}) })
+    });
+    const data = await res.json();
+
+    if (data.requires_password) {
+      document.getElementById('loginPwdWrap').classList.add('show');
+      pwdEl.focus();
+      errEl.textContent = '此账号需要密码';
+      btn.disabled = false; btn.textContent = '进入';
+      return;
+    }
+    if (data.error) {
+      errEl.textContent = data.error;
+      btn.disabled = false; btn.textContent = '进入';
+      return;
+    }
+
+    // ─ 登入成功 ─
+    currentUser = data;
+    localStorage.setItem('salesDB_user', JSON.stringify(data));
+    applyLoggedInUI();
+    await loadUserList();
+
+    const ls = document.getElementById('loginScreen');
+    ls.style.opacity = '0';
+    setTimeout(() => ls.style.display = 'none', 300);
+
+  } catch (e) {
+    errEl.textContent = '连线失败，请确认网络';
+    btn.disabled = false; btn.textContent = '进入';
+  }
+}
+
+function applyLoggedInUI() {
+  const badge = document.getElementById('userBadge');
+  badge.textContent = currentUser.name;
+  badge.style.display = 'flex';
+  if (currentUser.is_admin) {
+    document.getElementById('adminNavBtn').style.display = 'flex';
+  }
+}
+
+function confirmLogout() {
+  if (confirm(`登出 ${currentUser.name}？`)) {
+    localStorage.removeItem('salesDB_user');
+    location.reload();
+  }
+}
+
+// ════ 我的名单（API-backed）════
+async function loadUserList() {
+  if (!currentUser) return;
+  try {
+    const res  = await fetch(`${API_BASE}/api/list/${currentUser.id}`);
+    const data = await res.json();
+    myList = Array.isArray(data) ? data.map(x => x.company_id) : [];
+  } catch (e) { myList = []; }
+  renderMyListHome();
+  loadRecommendations(); // 名单加载后才算推荐
+}
+
+// ════ 本日推荐 ════
+async function loadRecommendations() {
+  if (!currentUser || !allData.length) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/companies/claimed`);
+    const d = await r.json();
+    claimedIds = new Set(d.claimed || []);
+  } catch(e) { claimedIds = new Set(); }
+  renderRecommendations();
+}
+
+// 日期為種子的 shuffle，每天結果不同但當天固定
+function shuffleSeeded(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = Math.imul(s ^ (s >>> 15), s | 1);
+    s ^= s + Math.imul(s ^ (s >>> 7), s | 61);
+    s = ((s ^ (s >>> 14)) >>> 0);
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function dateSeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth()+1) * 100 + d.getDate();
+}
+
+function renderRecommendations() {
+  const section = document.getElementById('recommendSection');
+  if (!section) return;
+
+  const seed = dateSeed() + (currentUser?.id || 0);
+
+  // ── 1. 抢先机：高价值 & 尚未被任何人选 ──
+  const highValueUnclaimed = shuffleSeeded(
+    allData.filter(d =>
+      (d.is_bonded || d.hedging || d.in_import) && !claimedIds.has(d.id)
+    ), seed
+  );
+  const rec1Show = highValueUnclaimed.slice(0, 5);
+
+  // ── 2. 地理集中：高價值企業最密集的區 ──
+  const districtMap = {};
+  allData.forEach(d => {
+    if (!d.district || d.district === '-' || myList.includes(d.id)) return;
+    if (!(d.is_bonded || d.hedging || d.in_import)) return;
+    if (!districtMap[d.district]) districtMap[d.district] = [];
+    districtMap[d.district].push(d);
+  });
+  const bestEntry = Object.entries(districtMap).sort((a,b) => b[1].length - a[1].length)[0];
+  const rec2District = bestEntry ? bestEntry[0] : null;
+  const rec2List     = bestEntry ? bestEntry[1].slice(0, 5) : [];
+
+  // ── 3. 高命中率：同時符合 2+ 條件 ──
+  const multiHit = allData.filter(d => {
+    if (myList.includes(d.id)) return false;
+    return [(d.is_bonded||false),(d.hedging||false),(d.in_import||false)].filter(Boolean).length >= 2;
+  });
+
+  // ── 4. 供應鏈 + 套保 ──
+  const supplyHedge = allData.filter(d =>
+    d.source === '供应链' && d.hedging && !myList.includes(d.id)
+  );
+
+  // ── 渲染（順序：💰 → 🔗 → 📍）──
+  const cards = [];
+
+  if (multiHit.length) {
+    cards.push(buildRecCard({
+      icon: '💰', variant: 'gold',
+      title: '开口最有把握的目标',
+      sub: '进出口＋套保双重确认',
+      items: multiHit,
+      total: multiHit.length,
+      onClick: `enterRec('multihit')`,
+      cardKey: 'multihit'
+    }));
+  }
+
+  if (supplyHedge.length) {
+    cards.push(buildRecCard({
+      icon: '🔗', variant: 'teal',
+      title: '供应链＋套保重点目标',
+      sub: '需求已验证的供应链企业',
+      items: supplyHedge,
+      total: supplyHedge.length,
+      onClick: `enterRec('supplyhedge')`,
+      cardKey: 'supplyhedge'
+    }));
+  }
+
+  if (rec2District && rec2List.length >= 2) {
+    cards.push(buildRecCard({
+      icon: '📍', variant: 'neutral',
+      title: `今天如果去${rec2District}`,
+      sub: `这一带有 ${bestEntry[1].length} 家高价值目标，一次出门效益最大`,
+      items: rec2List,
+      total: bestEntry[1].length,
+      onClick: `enterRec('geo')`,
+      cardKey: 'geo'
+    }));
+  }
+
+  if (!cards.length) { section.innerHTML = ''; return; }
+
+  section.innerHTML = `
+    <div class="section-label">本日推荐</div>
+    <div class="rec-section">${cards.join('')}</div>
+  `;
+
+  // 储存推荐数据供点击使用
+  window._recData = {
+    geo: bestEntry ? bestEntry[1] : [],
+    geoLabel: rec2District,
+    multihit: multiHit,
+    supplyhedge: supplyHedge,
+  };
+}
+
+function getRecDismissKey() {
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}${d.getMonth()+1}${d.getDate()}`;
+  return `rec_dismissed_${currentUser?.id || 0}_${dateStr}`;
+}
+
+function getDismissed() {
+  try { return JSON.parse(localStorage.getItem(getRecDismissKey()) || '[]'); }
+  catch(e) { return []; }
+}
+
+function dismissRec(key, e) {
+  e.stopPropagation();
+  const el = document.getElementById(`rec-card-${key}`);
+  if (!el) return;
+  el.classList.add('dismissed');
+  const dismissed = getDismissed();
+  if (!dismissed.includes(key)) dismissed.push(key);
+  localStorage.setItem(getRecDismissKey(), JSON.stringify(dismissed));
+  // 所有卡都關閉時，隱藏整個區塊
+  setTimeout(() => {
+    const section = document.getElementById('recommendSection');
+    if (section && section.querySelectorAll('.rec-card:not(.dismissed)').length === 0) {
+      section.style.transition = 'opacity .3s';
+      section.style.opacity = '0';
+      setTimeout(() => section.style.display = 'none', 300);
+    }
+  }, 350);
+}
+
+function buildRecCard({ icon, variant, title, sub, items, total, onClick, cardKey }) {
+  const dismissed = getDismissed();
+  if (dismissed.includes(cardKey)) return '';
+  const rows = items.slice(0, 5).map(d => `
+    <div class="rec-row" onclick="event.stopPropagation();openSheet(${d.id})">
+      <div class="rec-dot" style="background:${getColor(d.name)}"></div>
+      <div class="rec-name">${d.name}</div>
+      <div>${scaleBadge(d.scale)}</div>
+    </div>`).join('');
+  return `
+    <div class="rec-card ${variant}" id="rec-card-${cardKey}" onclick="${onClick}">
+      <div class="rec-card-header">
+        <div class="rec-icon-wrap">${icon}</div>
+        <div class="rec-header-body">
+          <div class="rec-title">${title}</div>
+          <div class="rec-sub">${sub}</div>
+        </div>
+        <div class="rec-count-badge">${total} 家</div>
+        <button class="rec-dismiss-btn" onclick="dismissRec('${cardKey}',event)" title="关闭">✕</button>
+      </div>
+      <div class="rec-rows">${rows}</div>
+    </div>`;
+}
+
+function enterRec(type) {
+  if (!window._recData) return;
+  const d = window._recData;
+  if (type === 'exclusive') {
+    currentCombo = { label:'抢先机名单', filter: x => d.exclusive.some(e => e.id === x.id) };
+    showListView('抢先机名单');
+  } else if (type === 'geo') {
+    currentCombo = { label:`${d.geoLabel} 推荐`, filter: x => d.geo.some(e => e.id === x.id) };
+    showListView(`${d.geoLabel} 推荐`);
+  } else if (type === 'multihit') {
+    currentCombo = { label:'高命中率目標', filter: x => d.multihit.some(e => e.id === x.id) };
+    showListView('高命中率目標');
+  } else if (type === 'supplyhedge') {
+    currentCombo = { label:'供應鏈＋套保', filter: x => d.supplyhedge.some(e => e.id === x.id) };
+    showListView('供應鏈＋套保');
+  }
+}
+
+async function toggleMyList(id) {
+  if (!currentUser) return;
+  const inList = myList.includes(id);
+  const d = allData.find(x => x.id === id);
+
+  // 樂觀更新 UI
+  if (inList) { myList = myList.filter(x => x !== id); }
+  else        { myList.push(id); }
+  renderMyListBtn(id);
+  renderMyListHome();
+
+  try {
+    if (inList) {
+      await fetch(`${API_BASE}/api/list/remove`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id, company_id: id })
+      });
+    } else {
+      await fetch(`${API_BASE}/api/list/add`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id, company_id: id, company_name: d?.name || '' })
+      });
+    }
+  } catch (e) {
+    // 失败时回滚
+    if (inList) { myList.push(id); } else { myList = myList.filter(x => x !== id); }
+    renderMyListBtn(id);
+    renderMyListHome();
+  }
+}
+
+function renderMyListBtn(id) {
+  const btn = document.getElementById('addBtn'); if (!btn) return;
+  const inList = myList.includes(id);
+  btn.className = 'add-btn ' + (inList ? 'added' : 'add');
+  btn.innerHTML = inList ? '✓ 已在名单中　点击移除' : '＋ 加入我的名单';
+}
+
+function renderMyListHome() {
+  const badge   = document.getElementById('mylistBadge');
+  const preview = document.getElementById('mylistPreview');
+  const n = myList.length;
+  badge.textContent = n;
+  badge.className = 'mylist-count-badge' + (n ? '' : ' empty');
+  if (!n) {
+    preview.innerHTML = `<div class="mylist-empty">在公司详情页点击「加入我的名单」<br>即可在此追踪目标客户</div>`;
+    return;
+  }
+  const show  = myList.slice(0, 3);
+  const items = show.map(id => {
+    const d = allData.find(x => x.id === id); if (!d) return '';
+    return `<div class="mylist-row">
+      <div class="mylist-row-dot" style="background:${getColor(d.name)}"></div>
+      <div class="mylist-row-name">${d.name}</div>
+      <div class="mylist-row-badge">${scaleBadge(d.scale)}</div>
+    </div>`;
+  }).join('');
+  const more = n > 3 ? `<div class="mylist-more">还有 ${n-3} 家 →</div>` : '';
+  preview.innerHTML = `<div class="mylist-rows">${items}</div>${more}`;
+}
+
+function enterMyList() {
+  if (!myList.length) return;
+  currentCombo = { label:'我的名单', filter: d => myList.includes(d.id) };
+  showListView('我的名单');
+}
+
+// ════ ADMIN VIEW ════
+async function enterAdminView() {
+  if (!currentUser?.is_admin) return;
+  ['homeView','listView'].forEach(v => document.getElementById(v).classList.remove('active'));
+  document.getElementById('adminView').classList.add('active');
+  document.getElementById('navBack').classList.add('show');
+  document.getElementById('navTitle').textContent = '管理者总览';
+  document.getElementById('searchBar').style.display = 'none';
+  document.getElementById('fabBtn').classList.remove('show');
+  document.getElementById('scopeBar').innerHTML = '';
+  currentCombo = null;
+  await loadAdminOverview();
+}
+
+async function loadAdminOverview() {
+  const content = document.getElementById('adminContent');
+  content.innerHTML = '<div style="padding:60px;text-align:center;color:var(--label2)">加载中…</div>';
+  try {
+    const res  = await fetch(`${API_BASE}/api/admin/overview`, {
+      headers: { 'X-User-Id': String(currentUser.id) }
+    });
+    const data = await res.json();
+    if (data.error) {
+      content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--red)">${data.error}</div>`;
+      return;
+    }
+    renderAdminOverview(data.users, data.lists);
+  } catch (e) {
+    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red)">加载失败，请重试</div>';
+  }
+}
+
+function renderAdminOverview(users, lists) {
+  // 按用戶分組
+  const byUser = {};
+  lists.forEach(item => {
+    if (!byUser[item.user_id]) byUser[item.user_id] = [];
+    byUser[item.user_id].push(item);
+  });
+
+  const totalUsers    = users.length;
+  const totalEntries  = lists.length;
+  const uniqueCompanies = new Set(lists.map(x => x.company_id)).size;
+
+  const content = document.getElementById('adminContent');
+  content.innerHTML = `
+    <button class="admin-refresh-btn" onclick="loadAdminOverview()">↻ 刷新</button>
+
+    <div class="admin-stat-row">
+      <div class="admin-stat">
+        <div class="admin-stat-num">${totalUsers}</div>
+        <div class="admin-stat-label">用户</div>
+      </div>
+      <div class="admin-stat">
+        <div class="admin-stat-num">${totalEntries}</div>
+        <div class="admin-stat-label">总选择笔数</div>
+      </div>
+      <div class="admin-stat">
+        <div class="admin-stat-num">${uniqueCompanies}</div>
+        <div class="admin-stat-label">不重复公司</div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-bottom:10px">各用户名单</div>
+    <div class="combo-group">
+      ${users.map(u => {
+        const ul    = byUser[u.id] || [];
+        const count = ul.length;
+        const color = getColor(u.name);
+        return `
+          <div class="combo-row" onclick="toggleAdminDetail(${u.id})">
+            <div class="combo-icon" style="background:${color};color:white;font-size:13px;font-weight:700">${u.name.slice(0,2)}</div>
+            <div class="combo-body">
+              <div class="combo-title">${u.name}${u.is_admin ? '　👑' : ''}</div>
+              <div class="combo-sub">首次登入 ${(u.created_at||'').slice(0,10)||'-'}</div>
+            </div>
+            <span class="combo-count" style="color:${count ? 'var(--blue)' : 'var(--label3)'}">${count}</span>
+            <span class="combo-chevron" id="adm-chev-${u.id}">›</span>
+          </div>
+          <div class="admin-detail-panel" id="adm-detail-${u.id}">
+            ${count === 0
+              ? '<div class="admin-empty-tip">尚未加入任何公司</div>'
+              : ul.map(item => `
+                  <div class="list-row" onclick="openSheet(${item.company_id})">
+                    <div class="row-icon" style="background:${getColor(item.company_name)}">${initials(item.company_name)}</div>
+                    <div class="row-body">
+                      <div class="row-title">${item.company_name}</div>
+                      <div class="row-sub">${(item.added_at||'').slice(0,10)}</div>
+                    </div>
+                    <span class="row-chevron">›</span>
+                  </div>`).join('')
+            }
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function toggleAdminDetail(userId) {
+  const det  = document.getElementById(`adm-detail-${userId}`);
+  const chev = document.getElementById(`adm-chev-${userId}`);
+  const open = det.style.display === 'block';
+  det.style.display   = open ? 'none' : 'block';
+  chev.style.transform = open ? '' : 'rotate(90deg)';
+}
+
+// ════ HOME ════
+const SOURCE_STATS = [
+  { label:'套保名单',  num:5110, color:'#AF52DE', key:'hedge'     },
+  { label:'供应链',    num: 514, color:'#007AFF', key:'supply'    },
+  { label:'深圳民企',  num: 414, color:'#34C759', key:'shenzhen'  },
+  { label:'贸易代理',  num: 436, color:'#FF9500', key:'trade'     },
+  { label:'批发业',    num: 281, color:'#5AC8FA', key:'wholesale' },
+];
+
+const COMBOS = [
+  { key:'供应链+套保',   label:'供应链 ＋ 套保名单',        sub:'需求已验证，重点争取转行',         icon:'⭐', bg:'#F5EEFF', filter: d=>d.source==='供应链'  && d.hedging   },
+  { key:'供应链+进出口', label:'供应链 ＋ 深圳民企进出口',   sub:'两份名单同时出现，高价值目标',     icon:'🔗', bg:'#E8F4FF', filter: d=>d.source==='供应链'  && d.in_import },
+  { key:'批发+进出口',   label:'批发业 ＋ 深圳民企进出口',   sub:'两份名单同时出现，进出口需求实证', icon:'📦', bg:'#FFF4E5', filter: d=>d.source==='批发业'  && d.in_import },
+  { key:'贸易代理+套保', label:'贸易代理 ＋ 套保名单',       sub:'代理业务涉及外汇，已有套保意识',   icon:'🤝', bg:'#E8FFF0', filter: d=>d.source==='贸易代理'&& d.hedging   },
+  { key:'套保名单',      label:'套保名单客户',               sub:'全部套保名单，共 94 家在本库中',   icon:'🏦', bg:'#F5EEFF', filter: d=>d.hedging },
+  { key:'全部',          label:'全部名单',                   sub:'浏览全部 1,741 家（不含套保筛选）',icon:'📋', bg:'#F2F2F7', filter: ()=>true },
+];
+
+const PALETTE = ['#007AFF','#34C759','#FF9500','#AF52DE','#5AC8FA','#FF2D55','#5856D6','#00C7BE'];
+function getColor(n) { let h=0; for(const c of n) h=(h*31+c.charCodeAt(0))>>>0; return PALETTE[h%PALETTE.length]; }
+function initials(n) { return n ? n.slice(0,2) : '??'; }
+
+function badges(d) {
+  let b = '';
+  if (d.is_bonded)           b += `<span class="badge badge-bonded">保税区</span>`;
+  else if (d.in_import)      b += `<span class="badge badge-import">进出口信用</span>`;
+  if (d.hedging)             b += `<span class="badge badge-hedge">套保</span>`;
+  b += scaleBadge(d.scale);
+  return b;
+}
+function scaleBadge(s) {
+  if (!s) return '';
+  const cls = s.startsWith('L')?'badge-scale-L':s.startsWith('M')?'badge-scale-M':s.startsWith('XS')?'badge-scale-XS':'badge-scale-S';
+  const lbl = {'L(大型)':'大型','M(中型)':'中型','S(小型)':'小型','XS(微型)':'微型'};
+  return `<span class="badge ${cls}">${lbl[s]||s}</span>`;
+}
+function scaleLabel(s) { return {'L(大型)':'大型','M(中型)':'中型','S(小型)':'小型','XS(微型)':'微型'}[s]||s; }
+
+function getPitch(d) {
+  if (d.is_bonded) return { cls:'bonded',  title:'保税区接触话术', text:'您公司在保税区做进出口，本周人民币波动较大，货物结汇成本有所变化。我们有短期锁汇工具，可以帮您把这个风险控制住，方便给您介绍一下吗？' };
+  if (d.hedging)   return { cls:'hedge',   title:'套保客户话术',   text:'了解到贵公司有套保业务，我们的套保费率和灵活度跟同业有所差异，不知道目前是否方便比较一下，看看有没有优化空间？' };
+  if (d.in_import) return { cls:'import',  title:'进出口企业话术', text:'贵公司有进出口业务，汇率波动会直接影响采购和结算成本。我们针对进出口企业有专属的外汇管理方案，可以给您分享一下吗？' };
+  return { cls:'default', title:'通用话术', text:'贵公司业务涉及跨境结算，目前人民币走势值得关注。我们有外汇风险管理工具，可以帮助企业稳定资金成本，方便了解一下吗？' };
+}
+
+function buildHome() {
+  document.getElementById('statsGrid').innerHTML = SOURCE_STATS.map(s=>`
+    <div class="stat-card" onclick="enterSource('${s.key}')">
+      <div class="stat-card-bar" style="background:${s.color}"></div>
+      <div class="stat-card-num" style="color:${s.color}">${s.num.toLocaleString()}</div>
+      <div class="stat-card-label">${s.label}</div>
+    </div>`).join('');
+
+  document.getElementById('comboGroup').innerHTML = COMBOS.map(c=>{
+    const cnt = allData.filter(c.filter).length;
+    return `
+    <div class="combo-row" onclick="enterCombo('${c.key}')">
+      <div class="combo-icon" style="background:${c.bg}">${c.icon}</div>
+      <div class="combo-body">
+        <div class="combo-title">${c.label}</div>
+        <div class="combo-sub">${c.sub}</div>
+      </div>
+      <span class="combo-count">${cnt}</span>
+      <span class="combo-chevron">›</span>
+    </div>`;
+  }).join('');
+}
+
+function enterSource(key) {
+  const map = {
+    hedge:     { label:'套保名单',  filter: d=>d.hedging },
+    supply:    { label:'供应链',    filter: d=>d.source==='供应链' },
+    shenzhen:  { label:'深圳民企',  filter: d=>d.source==='深圳民企' },
+    trade:     { label:'贸易代理',  filter: d=>d.source==='贸易代理' },
+    wholesale: { label:'批发业',    filter: d=>d.source==='批发业' },
+  };
+  currentCombo = map[key];
+  showListView(map[key].label);
+}
+
+function enterCombo(key) {
+  if (key==='保税区') { currentCombo={label:'福田保税区',filter:d=>d.is_bonded}; showListView('福田保税区'); return; }
+  const c = COMBOS.find(x=>x.key===key); if (!c) return;
+  currentCombo = c; showListView(c.label);
+}
+
+function showListView(title) {
+  ['homeView','adminView'].forEach(v => document.getElementById(v).classList.remove('active'));
+  document.getElementById('listView').classList.add('active');
+  document.getElementById('navBack').classList.add('show');
+  document.getElementById('navTitle').textContent = title;
+  document.getElementById('searchBar').style.display = 'block';
+  document.getElementById('fabBtn').classList.add('show');
+  searchQ = ''; activeF={city:[],district:[],scale:[]}; pendingF={city:[],district:[],scale:[]};
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  syncFChips(); updateDistrictSection(); renderScopeChips();
+  applyFilters();
+}
+
+function goHome() {
+  ['listView','adminView'].forEach(v => document.getElementById(v).classList.remove('active'));
+  document.getElementById('homeView').classList.add('active');
+  document.getElementById('navBack').classList.remove('show');
+  document.getElementById('navTitle').textContent = '营销数据库';
+  document.getElementById('navSubtitle').textContent = '';
+  document.getElementById('searchBar').style.display = 'none';
+  document.getElementById('fabBtn').classList.remove('show');
+  document.getElementById('scopeBar').innerHTML = '';
+  currentCombo = null;
+}
+
+// ════ LIST ════
+function applyFilters() {
+  if (!currentCombo) return;
+  const q = searchQ.toLowerCase();
+  filtered = allData.filter(d => {
+    if (!currentCombo.filter(d)) return false;
+    if (activeF.city.length     && !activeF.city.includes(d.city))         return false;
+    if (activeF.district.length && !activeF.district.includes(d.district)) return false;
+    if (activeF.scale.length    && !activeF.scale.includes(d.scale))       return false;
+    if (q && !d.name.toLowerCase().includes(q) && !d.legal_rep.toLowerCase().includes(q) && !(d.city+d.district).includes(q)) return false;
+    return true;
+  });
+  page = 0; renderList(true); renderScopeChips(); updateFab();
+}
+
+function renderList(reset) {
+  const list=document.getElementById('listGroup'), empty=document.getElementById('emptyState');
+  const hdr=document.getElementById('sectionHeader'), more=document.getElementById('loadMore');
+  if (reset) list.innerHTML = '';
+  const slice = filtered.slice(page*PAGE_SIZE, (page+1)*PAGE_SIZE);
+  if (!filtered.length) {
+    empty.style.display='block'; list.style.display='none'; hdr.textContent=''; more.innerHTML='';
+  } else {
+    empty.style.display='none'; list.style.display='block';
+    hdr.textContent=`共 ${filtered.length} 家企业`;
+    list.innerHTML += slice.map(renderRow).join('');
+    page++;
+    more.innerHTML = page*PAGE_SIZE<filtered.length ? `<div class="load-more" id="lmBtn">显示更多…</div>` : '';
+    if (page*PAGE_SIZE<filtered.length) document.getElementById('lmBtn').onclick=()=>renderList(false);
+  }
+  document.getElementById('navSubtitle').textContent = filtered.length ? `${filtered.length} 家` : '';
+}
+
+function renderRow(d) {
+  const color=getColor(d.name);
+  const loc=[d.city, d.district&&d.district!=='-'?d.district:null].filter(Boolean).join(' ');
+  const sub=[loc, d.phone?d.phone.slice(0,11):null].filter(Boolean).join('　');
+  return `
+  <div class="list-row" onclick="openSheet(${d.id})">
+    <div class="row-icon" style="background:${color}">${initials(d.name)}</div>
+    <div class="row-body">
+      <div class="row-title">${d.name}</div>
+      <div class="row-sub">${sub||'—'}</div>
+    </div>
+    <div class="row-right">
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${badges(d)}</div>
+    </div>
+    <span class="row-chevron">›</span>
+  </div>`;
+}
+
+// ─── Scope chips ───
+function renderScopeChips() {
+  const bar=document.getElementById('scopeBar');
+  const active=[...activeF.city.map(v=>({g:'city',v,label:v})),...activeF.district.map(v=>({g:'district',v,label:v})),...activeF.scale.map(v=>({g:'scale',v,label:scaleLabel(v)}))];
+  if (!active.length){bar.innerHTML='<div style="height:1px;min-width:1px"></div>';return;}
+  bar.innerHTML=active.map(c=>`<button class="scope-chip active" onclick="removeF('${c.g}','${c.v}')">${c.label} <span style="opacity:.6;margin-left:2px">✕</span></button>`).join('')+`<button class="scope-chip" onclick="clearAll()">清除全部</button>`;
+}
+function removeF(g,v){activeF[g]=activeF[g].filter(x=>x!==v);pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();updateDistrictSection();applyFilters();}
+function clearAll(){activeF={city:[],district:[],scale:[]};pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();updateDistrictSection();applyFilters();}
+function updateFab(){const n=Object.values(activeF).reduce((s,a)=>s+a.length,0);const b=document.getElementById('fabBadge');b.style.display=n?'inline':'none';b.textContent=n;}
+
+// ─── Detail sheet ───
+function openSheet(id) {
+  const d=allData.find(x=>x.id===id); if(!d) return;
+  const pitch=getPitch(d);
+  document.getElementById('sheetTitle').textContent=d.name;
+  document.getElementById('sheetBody').innerHTML=`
+    <div class="detail-tag-row">
+      ${d.is_bonded?'<span class="badge badge-bonded">保税区</span>':''}
+      ${d.in_import&&!d.is_bonded?'<span class="badge badge-import">深圳民企进出口信用</span>':''}
+      ${d.hedging?'<span class="badge badge-hedge">⭐ 套保名单</span>':''}
+      ${scaleBadge(d.scale)}
+      ${d.status?`<span class="badge" style="background:rgba(52,199,89,.12);color:#1a9c3e">${d.status}</span>`:''}
+    </div>
+    <button id="addBtn" class="add-btn ${myList.includes(d.id)?'added':'add'}"
+      onclick="toggleMyList(${d.id})" style="margin-top:16px">
+      ${myList.includes(d.id)?'✓ 已在名单中　点击移除':'＋ 加入我的名单'}
+    </button>
+    <div class="pitch-card ${pitch.cls}">
+      <div class="pitch-card-title">💬 ${pitch.title}</div>
+      <div class="pitch-card-text">"${pitch.text}"</div>
+    </div>
+    <div class="detail-section"><div class="detail-section-title">基本信息</div><div class="detail-group">
+      ${row('法定代表人',d.legal_rep)}${row('注册资本',d.capital)}${row('成立日期',d.founded)}
+      ${row('参保人数',d.staff?d.staff+'&nbsp;人':'')}${row('企业类型',d.biz_type)}
+      ${row('信用代码',`<span style="font-size:12px;font-family:monospace">${d.credit_code}</span>`)}
+    </div></div>
+    <div class="detail-section"><div class="detail-section-title">联系方式</div><div class="detail-group">
+      ${row('手机号',d.phone?`<a href="tel:${d.phone}">${d.phone}</a>`:'')}
+      ${row('更多电话',d.more_phones)}
+      ${row('电子邮件',d.email?`<a href="mailto:${d.email}">${d.email}</a>`:'')}
+      ${row('官网',d.website?`<a href="${d.website.startsWith('http')?d.website:'http://'+d.website}" target="_blank">${d.website}</a>`:'')}
+    </div></div>
+    <div class="detail-section"><div class="detail-section-title">地址</div><div class="detail-group">
+      ${row('城市',[d.province,d.city,d.district].filter(Boolean).join(' '))}
+      ${row('注册地址',d.address)}
+    </div></div>
+    ${(d.industry_main||d.industry_sub)?`<div class="detail-section"><div class="detail-section-title">行业分类</div><div class="detail-group">${row('门类',d.industry_main)}${row('大类',d.industry_sub)}</div></div>`:''}
+    ${d.scope?`<div class="detail-section"><div class="detail-section-title">经营范围</div><div class="scope-block">${d.scope.slice(0,400)}${d.scope.length>400?'…':''}</div></div>`:''}
+    ${d.intro?`<div class="detail-section"><div class="detail-section-title">企业简介</div><div class="scope-block">${d.intro.slice(0,300)}${d.intro.length>300?'…':''}</div></div>`:''}
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function row(label,val){if(!val)return '';return `<div class="detail-row"><div class="detail-row-label">${label}</div><div class="detail-row-value">${val}</div></div>`;}
+function closeSheet(){document.getElementById('overlay').classList.remove('show');document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';}
+
+// ─── Filter sheet ───
+function buildFChips() {
+  [...new Set(allData.map(d=>d.city).filter(Boolean))].sort().forEach(v=>{
+    const btn=document.createElement('button');
+    btn.className='f-chip';btn.dataset.group='city';btn.dataset.val=v;btn.textContent=v;
+    btn.addEventListener('click',()=>{
+      const arr=pendingF.city;
+      if(arr.includes(v)){pendingF.city=arr.filter(x=>x!==v);btn.classList.remove('active');}
+      else{arr.push(v);btn.classList.add('active');}
+      const valid=pendingF.city.flatMap(c=>CITY_DISTRICTS[c]||[]);
+      pendingF.district=pendingF.district.filter(d=>valid.includes(d));
+      updateDistrictSection();
+    });
+    document.getElementById('fCity').appendChild(btn);
+  });
+  [['L(大型)','大型'],['M(中型)','中型'],['S(小型)','小型'],['XS(微型)','微型']].forEach(([v,lbl])=>{
+    const btn=document.createElement('button');
+    btn.className='f-chip';btn.dataset.group='scale';btn.dataset.val=v;btn.textContent=lbl;
+    btn.addEventListener('click',()=>{
+      const arr=pendingF.scale;
+      if(arr.includes(v)){pendingF.scale=arr.filter(x=>x!==v);btn.classList.remove('active');}
+      else{arr.push(v);btn.classList.add('active');}
+    });
+    document.getElementById('fScale').appendChild(btn);
+  });
+}
+
+function updateDistrictSection() {
+  const cities=pendingF.city, sec=document.getElementById('fDistrictSection'), con=document.getElementById('fDistrict');
+  if (!cities.length){sec.style.display='none';con.innerHTML='';return;}
+  const districts=[...new Set(cities.flatMap(c=>CITY_DISTRICTS[c]||[]))].sort();
+  if (!districts.length){sec.style.display='none';return;}
+  sec.style.display='block'; con.innerHTML='';
+  districts.forEach(v=>{
+    const btn=document.createElement('button');
+    btn.className='f-chip';btn.dataset.group='district';btn.dataset.val=v;btn.textContent=v;
+    if(pendingF.district.includes(v))btn.classList.add('active');
+    btn.addEventListener('click',()=>{
+      const arr=pendingF.district;
+      if(arr.includes(v)){pendingF.district=arr.filter(x=>x!==v);btn.classList.remove('active');}
+      else{arr.push(v);btn.classList.add('active');}
+    });
+    con.appendChild(btn);
+  });
+}
+
+function syncFChips(){
+  document.querySelectorAll('#fCity .f-chip,#fScale .f-chip').forEach(b=>b.classList.toggle('active',pendingF[b.dataset.group]?.includes(b.dataset.val)));
+  updateDistrictSection();
+}
+function openFSheet(){pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();document.getElementById('fOverlay').classList.add('show');document.getElementById('fSheet').classList.add('show');document.body.style.overflow='hidden';}
+function closeFSheet(){document.getElementById('fOverlay').classList.remove('show');document.getElementById('fSheet').classList.remove('show');document.body.style.overflow='';}
+
+// ─── Events ───
+document.getElementById('navBack').addEventListener('click', goHome);
+document.getElementById('overlay').addEventListener('click', closeSheet);
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+document.getElementById('fabBtn').addEventListener('click', openFSheet);
+document.getElementById('fOverlay').addEventListener('click', closeFSheet);
+document.getElementById('fSheetClose').addEventListener('click', closeFSheet);
+document.getElementById('fBtnReset').addEventListener('click',()=>{pendingF={city:[],district:[],scale:[]};syncFChips();});
+document.getElementById('fBtnApply').addEventListener('click',()=>{activeF=JSON.parse(JSON.stringify(pendingF));closeFSheet();applyFilters();});
+document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;document.getElementById('searchClear').style.display=searchQ?'flex':'none';applyFilters();});
+document.getElementById('searchClear').addEventListener('click',()=>{document.getElementById('searchInput').value='';searchQ='';document.getElementById('searchClear').style.display='none';applyFilters();});
+
+// Login Enter keys
+document.getElementById('loginName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ─── Init ───
+// 恢复已登录的 session
+const _saved = localStorage.getItem('salesDB_user');
+if (_saved) {
+  try {
+    currentUser = JSON.parse(_saved);
+    applyLoggedInUI();
+    document.getElementById('loginScreen').style.display = 'none';
+  } catch(e) {
+    localStorage.removeItem('salesDB_user');
+  }
+}
+
+// 加载公司数据
+fetch('data.json')
+  .then(r => r.json())
+  .then(data => {
+    allData = data;
+    buildFChips();
+    buildHome();
+    if (currentUser) {
+      loadUserList(); // 从 API 加载名单
+    } else {
+      renderMyListHome();
+    }
+  })
+  .catch(() => {
+    document.getElementById('homeView').innerHTML =
+      '<div style="padding:60px;text-align:center;color:var(--label2)">数据加载失败</div>';
+  });
+</script>
+</body>
+</html>

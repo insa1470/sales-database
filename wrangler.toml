@@ -1,0 +1,27 @@
+# 行銷資料庫 · Cloudflare Pages 部署設定
+# 帳號：Insa.eco@gmail.com
+# 網域：deepmystic.net（在 Cloudflare Dashboard 設定子網域，例如 sales.deepmystic.net）
+#
+# ── 首次部署步驟 ──────────────────────────────────────────────────
+# 1. 安裝 wrangler：npm install -g wrangler
+# 2. 登入：npx wrangler login
+# 3. 建立 D1 資料庫：npx wrangler d1 create marketing-db
+#    → 將輸出的 database_id 填入下方 [[d1_databases]]
+# 4. 建立資料表：npx wrangler d1 execute marketing-db --file=schema.sql --remote
+# 5. 設定管理者密碼（Secret，不寫進程式碼）：
+#    npx wrangler pages secret put ADMIN_PASSWORD
+#    → 輸入密碼後 Enter
+# 6. （選填）若要自訂管理者帳號：
+#    npx wrangler pages secret put ADMIN_NAME
+#    → 預設為 sz0453
+# 7. 推送至 GitHub → Cloudflare Pages 自動部署
+# ─────────────────────────────────────────────────────────────────
+
+name = "sales-database"
+pages_build_output_dir = "."
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding      = "DB"
+database_name = "marketing-db"
+database_id  = "fb5eeaa1-5773-4f85-ba17-fe42e562fa67"
