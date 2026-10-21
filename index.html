@@ -175,6 +175,11 @@
   .badge-scale-M  { background: rgba(255,149,0,.1);  color: var(--orange); }
   .badge-scale-S  { background: rgba(52,199,89,.1);  color: #1a9c3e; }
   .badge-scale-XS { background: var(--fill);         color: var(--label2); }
+  .badge-canton-phase   { background: rgba(0,122,255,.1); color: var(--blue); }
+  .badge-canton-grade-a { background: rgba(52,199,89,.12); color: #1a9c3e; }
+  .badge-canton-grade-b { background: rgba(255,149,0,.14); color: #b66a00; }
+  .canton-data-note { font-size: 12px; line-height: 1.5; color: var(--label2); margin-top: 8px; }
+  .combo-row.disabled { opacity: .55; }
 
   /* ─── Empty ─── */
   .empty-state { display: none; text-align: center; padding: 80px 30px; }
@@ -607,6 +612,10 @@
       <div class="f-section-title">城市</div>
       <div class="f-chips" id="fCity"></div>
     </div>
+    <div class="f-section" id="fPhaseSection" style="display:none">
+      <div class="f-section-title">广交会期别</div>
+      <div class="f-chips" id="fPhase"></div>
+    </div>
     <div class="f-section" id="fDistrictSection" style="display:none">
       <div class="f-section-title">地区</div>
       <div class="f-chips" id="fDistrict"></div>
@@ -622,6 +631,7 @@
   </div>
 </div>
 
+<script src="canton140.js"></script>
 <script>
 // ─── Config ───
 const API_BASE = ''; // 同網域，空字串即可
@@ -637,9 +647,10 @@ let _shownHotIds = new Set(); // 首頁顯示的前6筆熱門 ID
 let currentUser = null;      // { id, name, is_admin }
 const PAGE_SIZE = 40;
 let searchQ = '';
-let activeF  = { city:[], district:[], scale:[] };
-let pendingF = { city:[], district:[], scale:[] };
+let activeF  = { city:[], district:[], scale:[], phase:[] };
+let pendingF = { city:[], district:[], scale:[], phase:[] };
 let currentCombo = null;
+let canton140LoadError = null;
 
 const CITY_DISTRICTS = {
   '深圳市': ['光明区','南山区','坪山区','宝安区','盐田区','福田区','罗湖区','龙华区','龙岗区'],
@@ -1307,13 +1318,14 @@ const SOURCE_STATS = [
 ];
 
 const COMBOS = [
+  { key:'canton140_hedging', label:'第140届广交会 ＋ 套保名单', sub:()=>canton140LoadError?'名单加载失败，请刷新后重试':'A、B级共300家，可按城市与期别筛选', icon:'🏛️', bg:'#EAF2FF', filter:d=>d.canton140===true },
   { key:'供应链+套保',    label:'供应链 ＋ 套保名单',        sub:'需求已验证，重点争取转行',           icon:'⭐', bg:'#F5EEFF', filter: d=>d.source==='供应链'   && d.hedging   },
   { key:'供应链+进出口',  label:'供应链 ＋ 深圳民企进出口',   sub:'两份名单同时出现，高价值目标',       icon:'🔗', bg:'#E8F4FF', filter: d=>d.source==='供应链'   && d.in_import },
   { key:'批发+进出口',    label:'批发业 ＋ 深圳民企进出口',   sub:'两份名单同时出现，进出口需求实证',   icon:'📦', bg:'#FFF4E5', filter: d=>d.source==='批发业'   && d.in_import },
   { key:'贸易代理+套保',  label:'贸易代理 ＋ 套保名单',       sub:'代理业务涉及外汇，已有套保意识',     icon:'🤝', bg:'#E8FFF0', filter: d=>d.source==='贸易代理' && d.hedging   },
   { key:'电子分销+套保',  label:'电子分销 ＋ 套保名单',        sub:'同时出现在套保名单，外汇需求已验证的精华',   icon:'🔥', bg:'#FFF0F5', filter: d=>d.source==='电子分销' && d.hedging && d.in_import },
-  { key:'套保名单',       label:'套保名单客户',               sub:'全部套保名单，共 94 家在本库中',     icon:'🏦', bg:'#F5EEFF', filter: d=>d.hedging },
-  { key:'全部',           label:'全部名单',                   sub:'浏览全部 2,475 家企业',              icon:'📋', bg:'#F2F2F7', filter: ()=>true },
+  { key:'套保名单',       label:'套保名单客户',               sub:()=>`全部套保名单，共 ${allData.filter(d=>d.hedging).length.toLocaleString()} 家在本库中`, icon:'🏦', bg:'#F5EEFF', filter: d=>d.hedging },
+  { key:'全部',           label:'全部名单',                   sub:()=>`浏览全部 ${allData.length.toLocaleString()} 家企业`, icon:'📋', bg:'#F2F2F7', filter: ()=>true },
 ];
 
 const PALETTE = ['#007AFF','#34C759','#FF9500','#AF52DE','#5AC8FA','#FF2D55','#5856D6','#00C7BE'];
@@ -1331,6 +1343,13 @@ function badges(d) {
   if (d.is_bonded)           b += `<span class="badge badge-bonded">保税区</span>`;
   else if (d.in_import)      b += `<span class="badge badge-import">进出口信用</span>`;
   if (d.hedging)             b += `<span class="badge badge-hedge">套保</span>`;
+  if (d.canton140_info) {
+    (d.canton140_info.phase || []).forEach(phase => {
+      b += `<span class="badge badge-canton-phase">${escapeHtml(phase)}</span>`;
+    });
+    const grade = d.canton140_info.match_grade;
+    if (grade) b += `<span class="badge badge-canton-grade-${grade.toLowerCase()}">${escapeHtml(grade)}级</span>`;
+  }
   b += scaleBadge(d.scale);
   return b;
 }
@@ -1359,12 +1378,13 @@ function buildHome() {
 
   document.getElementById('comboGroup').innerHTML = COMBOS.map(c=>{
     const cnt = allData.filter(c.filter).length;
+    const sub = typeof c.sub === 'function' ? c.sub() : c.sub;
     return `
-    <div class="combo-row" onclick="enterCombo('${c.key}')">
+    <div class="combo-row ${c.key==='canton140_hedging'&&canton140LoadError?'disabled':''}" onclick="enterCombo('${c.key}')">
       <div class="combo-icon" style="background:${c.bg}">${c.icon}</div>
       <div class="combo-body">
         <div class="combo-title">${c.label}</div>
-        <div class="combo-sub">${c.sub}</div>
+        <div class="combo-sub">${sub}</div>
       </div>
       <span class="combo-count">${cnt}</span>
       <span class="combo-chevron">›</span>
@@ -1387,6 +1407,10 @@ function enterSource(key) {
 
 function enterCombo(key) {
   if (key==='保税区') { currentCombo={label:'福田保税区',filter:d=>d.is_bonded}; showListView('福田保税区'); return; }
+  if (key==='canton140_hedging' && canton140LoadError) {
+    alert('广交会名单加载失败，请刷新页面后重试。');
+    return;
+  }
   const c = COMBOS.find(x=>x.key===key); if (!c) return;
   currentCombo = c; showListView(c.label);
 }
@@ -1398,7 +1422,7 @@ function showListView(title) {
   document.getElementById('navTitle').textContent = title;
   document.getElementById('searchBar').style.display = 'block';
   document.getElementById('fabBtn').classList.add('show');
-  searchQ = ''; activeF={city:[],district:[],scale:[]}; pendingF={city:[],district:[],scale:[]};
+  searchQ = ''; activeF={city:[],district:[],scale:[],phase:[]}; pendingF={city:[],district:[],scale:[],phase:[]};
   document.getElementById('searchInput').value = '';
   document.getElementById('searchClear').style.display = 'none';
   syncFChips(); updateDistrictSection(); renderScopeChips();
@@ -1424,8 +1448,11 @@ function applyFilters() {
   filtered = allData.filter(d => {
     if (!currentCombo.filter(d)) return false;
     // 我的名单保留標記公司；其他列表一律排除
-    if (currentCombo.key !== 'my_list' && isCompanyFlagged(d.id)) return false;
-    if (activeF.city.length     && !activeF.city.includes(d.city))         return false;
+    if (currentCombo.key !== 'my_list' && currentCombo.key !== 'canton140_hedging' && isCompanyFlagged(d.id)) return false;
+    if (currentCombo.key === 'canton140_hedging') {
+      if (activeF.city.length && !activeF.city.includes(Canton140.cantonCity(d))) return false;
+      if (!Canton140.matchesCantonPhase(d, activeF.phase)) return false;
+    } else if (activeF.city.length && !activeF.city.includes(d.city)) return false;
     if (activeF.district.length && !activeF.district.includes(d.district)) return false;
     if (activeF.scale.length    && !activeF.scale.includes(d.scale))       return false;
     if (q && !d.name.toLowerCase().includes(q) && !d.legal_rep.toLowerCase().includes(q) && !(d.city+d.district).includes(q)) return false;
@@ -1458,7 +1485,8 @@ function renderList(reset) {
 
 function renderRow(d) {
   const color=getColor(d.name);
-  const loc=[d.city, d.district&&d.district!=='-'?d.district:null].filter(Boolean).join(' ');
+  const rowCity=currentCombo?.key==='canton140_hedging'?Canton140.cantonCity(d):d.city;
+  const loc=[rowCity, d.district&&d.district!=='-'?d.district:null].filter(Boolean).join(' ');
   const sub=[loc, d.phone?d.phone.slice(0,11):null].filter(Boolean).join('　');
   let trackBadge = '';
   if (currentCombo?.key === 'other_tracking') {
@@ -1483,15 +1511,40 @@ function renderRow(d) {
 // ─── Scope chips ───
 function renderScopeChips() {
   const bar=document.getElementById('scopeBar');
-  const active=[...activeF.city.map(v=>({g:'city',v,label:v})),...activeF.district.map(v=>({g:'district',v,label:v})),...activeF.scale.map(v=>({g:'scale',v,label:scaleLabel(v)}))];
+  const active=[...activeF.city.map(v=>({g:'city',v,label:v})),...activeF.phase.map(v=>({g:'phase',v,label:v})),...activeF.district.map(v=>({g:'district',v,label:v})),...activeF.scale.map(v=>({g:'scale',v,label:scaleLabel(v)}))];
   if (!active.length){bar.innerHTML='<div style="height:1px;min-width:1px"></div>';return;}
   bar.innerHTML=active.map(c=>`<button class="scope-chip active" onclick="removeF('${c.g}','${c.v}')">${c.label} <span style="opacity:.6;margin-left:2px">✕</span></button>`).join('')+`<button class="scope-chip" onclick="clearAll()">清除全部</button>`;
 }
 function removeF(g,v){activeF[g]=activeF[g].filter(x=>x!==v);pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();updateDistrictSection();applyFilters();}
-function clearAll(){activeF={city:[],district:[],scale:[]};pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();updateDistrictSection();applyFilters();}
+function clearAll(){activeF={city:[],district:[],scale:[],phase:[]};pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();updateDistrictSection();applyFilters();}
 function updateFab(){const n=Object.values(activeF).reduce((s,a)=>s+a.length,0);const b=document.getElementById('fabBadge');b.style.display=n?'inline':'none';b.textContent=n;}
 
 // ─── Detail sheet ───
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[char]);
+}
+
+function cantonDetailSection(d) {
+  const info=d.canton140_info;
+  if(!info)return '';
+  const phases=(info.phase||[]).map(escapeHtml).join('、')||'待确认';
+  const sections=(info.section||[]).map(escapeHtml).join('<br>')||'待确认';
+  const booths=(info.booth||[]).map(escapeHtml).join('<br>')||'待确认';
+  const location=[info.province,info.city].filter(Boolean).map(escapeHtml).join(' ')||'待确认';
+  const address=info.address?escapeHtml(info.address):'待确认';
+  const capital=info.capital?escapeHtml(info.capital):'待确认';
+  const reason=[info.match_grade?`${escapeHtml(info.match_grade)}级`:null,info.match_reason?escapeHtml(info.match_reason):null].filter(Boolean).join(' · ')||'待确认';
+  const officialUrl=String(info.official_url||'').startsWith('https://365.cantonfair.org.cn/')?escapeHtml(info.official_url):'';
+  const officialLink=officialUrl?`<a href="${officialUrl}" target="_blank" rel="noopener noreferrer">查看广交会官方页面</a>`:'待确认';
+  const dataStatus=escapeHtml(info.data_status||'广交会展商资料，未经工商核验');
+  return `<div class="detail-section"><div class="detail-section-title">第140届广交会</div><div class="detail-group">
+    ${row('匹配级别',reason)}${row('期别',phases)}${row('展区',sections)}${row('展位',booths)}
+    ${row('广交会所在地',location)}${row('广交会地址',address)}${row('广交会注册资本',capital)}${row('官方资料',officialLink)}
+  </div><div class="canton-data-note">${dataStatus}</div></div>`;
+}
+
 function openSheet(id) {
   const d=allData.find(x=>x.id===id); if(!d) return;
   const pitch=getPitch(d);
@@ -1528,6 +1581,7 @@ function openSheet(id) {
       ${row('城市',[d.province,d.city,d.district].filter(Boolean).join(' '))}
       ${row('注册地址',d.address)}
     </div></div>
+    ${cantonDetailSection(d)}
     ${(d.industry_main||d.industry_sub)?`<div class="detail-section"><div class="detail-section-title">行业分类</div><div class="detail-group">${row('门类',d.industry_main)}${row('大类',d.industry_sub)}</div></div>`:''}
     ${d.scope?`<div class="detail-section"><div class="detail-section-title">经营范围</div><div class="scope-block">${d.scope.slice(0,400)}${d.scope.length>400?'…':''}</div></div>`:''}
     ${d.intro?`<div class="detail-section"><div class="detail-section-title">企业简介</div><div class="scope-block">${d.intro.slice(0,300)}${d.intro.length>300?'…':''}</div></div>`:''}
@@ -1540,20 +1594,32 @@ function row(label,val){if(!val)return '';return `<div class="detail-row"><div c
 function closeSheet(){document.getElementById('overlay').classList.remove('show');document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';_selectedFlagType=null;}
 
 // ─── Filter sheet ───
-function buildFChips() {
-  [...new Set(allData.map(d=>d.city).filter(Boolean))].sort().forEach(v=>{
+function renderCityChips() {
+  const container=document.getElementById('fCity');
+  const values=currentCombo?.key==='canton140_hedging'
+    ? [...new Set(allData.filter(d=>d.canton140).map(d=>Canton140.cantonCity(d)))]
+    : [...new Set(allData.map(d=>d.city).filter(Boolean))];
+  values.sort((a,b)=>a==='待确认'?1:b==='待确认'?-1:a.localeCompare(b,'zh-CN'));
+  container.innerHTML='';
+  values.forEach(v=>{
     const btn=document.createElement('button');
     btn.className='f-chip';btn.dataset.group='city';btn.dataset.val=v;btn.textContent=v;
     btn.addEventListener('click',()=>{
       const arr=pendingF.city;
       if(arr.includes(v)){pendingF.city=arr.filter(x=>x!==v);btn.classList.remove('active');}
       else{arr.push(v);btn.classList.add('active');}
-      const valid=pendingF.city.flatMap(c=>CITY_DISTRICTS[c]||[]);
-      pendingF.district=pendingF.district.filter(d=>valid.includes(d));
+      if(currentCombo?.key!=='canton140_hedging'){
+        const valid=pendingF.city.flatMap(c=>CITY_DISTRICTS[c]||[]);
+        pendingF.district=pendingF.district.filter(d=>valid.includes(d));
+      }
       updateDistrictSection();
     });
-    document.getElementById('fCity').appendChild(btn);
+    container.appendChild(btn);
   });
+}
+
+function buildFChips() {
+  renderCityChips();
   [['L(大型)','大型'],['M(中型)','中型'],['S(小型)','小型'],['XS(微型)','微型']].forEach(([v,lbl])=>{
     const btn=document.createElement('button');
     btn.className='f-chip';btn.dataset.group='scale';btn.dataset.val=v;btn.textContent=lbl;
@@ -1564,10 +1630,21 @@ function buildFChips() {
     });
     document.getElementById('fScale').appendChild(btn);
   });
+  ['第1期','第2期','第3期'].forEach(v=>{
+    const btn=document.createElement('button');
+    btn.className='f-chip';btn.dataset.group='phase';btn.dataset.val=v;btn.textContent=v;
+    btn.addEventListener('click',()=>{
+      const arr=pendingF.phase;
+      if(arr.includes(v)){pendingF.phase=arr.filter(x=>x!==v);btn.classList.remove('active');}
+      else{arr.push(v);btn.classList.add('active');}
+    });
+    document.getElementById('fPhase').appendChild(btn);
+  });
 }
 
 function updateDistrictSection() {
   const cities=pendingF.city, sec=document.getElementById('fDistrictSection'), con=document.getElementById('fDistrict');
+  if(currentCombo?.key==='canton140_hedging'){sec.style.display='none';con.innerHTML='';pendingF.district=[];return;}
   if (!cities.length){sec.style.display='none';con.innerHTML='';return;}
   const districts=[...new Set(cities.flatMap(c=>CITY_DISTRICTS[c]||[]))].sort();
   if (!districts.length){sec.style.display='none';return;}
@@ -1586,10 +1663,11 @@ function updateDistrictSection() {
 }
 
 function syncFChips(){
-  document.querySelectorAll('#fCity .f-chip,#fScale .f-chip').forEach(b=>b.classList.toggle('active',pendingF[b.dataset.group]?.includes(b.dataset.val)));
+  document.querySelectorAll('#fCity .f-chip,#fScale .f-chip,#fPhase .f-chip').forEach(b=>b.classList.toggle('active',pendingF[b.dataset.group]?.includes(b.dataset.val)));
   updateDistrictSection();
 }
-function openFSheet(){pendingF=JSON.parse(JSON.stringify(activeF));syncFChips();document.getElementById('fOverlay').classList.add('show');document.getElementById('fSheet').classList.add('show');document.body.style.overflow='hidden';}
+function updateFilterSections(){document.getElementById('fPhaseSection').style.display=currentCombo?.key==='canton140_hedging'?'block':'none';}
+function openFSheet(){pendingF=JSON.parse(JSON.stringify(activeF));renderCityChips();updateFilterSections();syncFChips();document.getElementById('fOverlay').classList.add('show');document.getElementById('fSheet').classList.add('show');document.body.style.overflow='hidden';}
 function closeFSheet(){document.getElementById('fOverlay').classList.remove('show');document.getElementById('fSheet').classList.remove('show');document.body.style.overflow='';}
 
 // ─── Events ───
@@ -1599,7 +1677,7 @@ document.getElementById('sheetClose').addEventListener('click', closeSheet);
 document.getElementById('fabBtn').addEventListener('click', openFSheet);
 document.getElementById('fOverlay').addEventListener('click', closeFSheet);
 document.getElementById('fSheetClose').addEventListener('click', closeFSheet);
-document.getElementById('fBtnReset').addEventListener('click',()=>{pendingF={city:[],district:[],scale:[]};syncFChips();});
+document.getElementById('fBtnReset').addEventListener('click',()=>{pendingF={city:[],district:[],scale:[],phase:[]};syncFChips();});
 document.getElementById('fBtnApply').addEventListener('click',()=>{activeF=JSON.parse(JSON.stringify(pendingF));closeFSheet();applyFilters();});
 document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;document.getElementById('searchClear').style.display=searchQ?'flex':'none';applyFilters();});
 document.getElementById('searchClear').addEventListener('click',()=>{document.getElementById('searchInput').value='';searchQ='';document.getElementById('searchClear').style.display='none';applyFilters();});
@@ -1625,19 +1703,32 @@ if (_saved) {
   }
 }
 
-// 加载公司数据
-fetch('data.json')
-  .then(r => r.json())
-  .then(data => {
-    allData = data;
-    buildFChips();
-    buildHome();
-    if (currentUser) {
-      loadUserList(); // 从 API 加载名单
-    } else {
-      renderMyListHome();
-    }
-  })
+async function fetchJSON(url) {
+  const response=await fetch(url);
+  if(!response.ok)throw new Error(`${url} HTTP ${response.status}`);
+  return response.json();
+}
+
+// 加载公司数据；广交会资料失败时不影响既有 Hunter Hub。
+async function loadCompanyData() {
+  const baseData=await fetchJSON('data.json');
+  if(!Array.isArray(baseData))throw new Error('data.json 格式错误');
+  allData=baseData;
+  try {
+    const cantonData=await fetchJSON('canton140.json');
+    if(!Array.isArray(cantonData)||cantonData.length!==300)throw new Error('广交会名单数量异常');
+    allData=Canton140.mergeCanton140Data(baseData,cantonData);
+  } catch(error) {
+    canton140LoadError=error;
+    console.error('Canton140 load failed',error);
+  }
+  buildFChips();
+  buildHome();
+  if(currentUser)await loadUserList();
+  else renderMyListHome();
+}
+
+loadCompanyData()
   .catch(() => {
     document.getElementById('homeView').innerHTML =
       '<div style="padding:60px;text-align:center;color:var(--label2)">数据加载失败</div>';
