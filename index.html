@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#F2F2F7">
+<link rel="manifest" href="manifest-v1.webmanifest">
+<link rel="icon" type="image/svg+xml" href="assets/hunter-hub-target-v1.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/hunter-hub-icon-180-v1.png">
 <title>Hunter Hub</title>
 <style>
   :root {
@@ -78,10 +82,10 @@
     border-bottom: .5px solid var(--separator);
   }
   .mylist-icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: var(--blue); display: flex; align-items: center;
-    justify-content: center; font-size: 16px; flex-shrink: 0;
+    width: 34px; height: 34px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
   }
+  .mylist-icon img { width: 34px; height: 34px; display: block; object-fit: contain; }
   .mylist-heading { font-size: 15px; font-weight: 600; flex: 1; }
   .mylist-count-badge {
     background: var(--blue); color: white;
@@ -365,7 +369,7 @@
     max-width: 360px;
     box-shadow: 0 8px 40px rgba(0,0,0,.10);
   }
-  .login-logo  { font-size: 44px; text-align: center; margin-bottom: 10px; }
+  .login-logo  { width: 68px; height: 68px; display: block; object-fit: contain; margin: 0 auto 8px; }
   .login-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }
   .login-sub   { font-size: 14px; color: var(--label2); text-align: center; margin-bottom: 24px; line-height: 1.5; }
   .login-input {
@@ -489,7 +493,7 @@
 <!-- ════ LOGIN SCREEN ════ -->
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
-    <div class="login-logo">🎯</div>
+    <img class="login-logo" src="assets/hunter-hub-target-v1.svg" alt="" aria-hidden="true">
     <div class="login-title">Hunter Hub</div>
     <div class="login-sub">输入您的名字即可进入</div>
     <input class="login-input" id="loginName" type="text" placeholder="您的名字" autocomplete="off" />
@@ -533,7 +537,7 @@
     <!-- 我的名单 -->
     <div class="mylist-card" id="mylistCard" onclick="enterMyList()">
       <div class="mylist-header">
-        <div class="mylist-icon">🎯</div>
+        <div class="mylist-icon"><img src="assets/hunter-hub-target-v1.svg" alt="" aria-hidden="true"></div>
         <span class="mylist-heading">我的名单</span>
         <span class="mylist-count-badge empty" id="mylistBadge">0</span>
         <span class="mylist-chevron">›</span>

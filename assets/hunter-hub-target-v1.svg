@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Hunter Hub 靶心圖示</title>
+  <desc id="desc">一支藍綠色飛鏢從右上方插中紅白相間的靶心</desc>
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <circle cx="210" cy="302" r="132" fill="#d71920"/>
+  <circle cx="210" cy="302" r="104" fill="#ffffff"/>
+  <circle cx="210" cy="302" r="77" fill="#e1252d"/>
+  <circle cx="210" cy="302" r="50" fill="#ffffff"/>
+  <circle cx="210" cy="302" r="24" fill="#d71920"/>
+
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <path d="M239 273L402 110" stroke="#205b6d" stroke-width="22"/>
+    <path d="M239 273L402 110" stroke="#59d2dc" stroke-width="13"/>
+    <path d="M210 302L230 263L249 282Z" fill="#c7d5da" stroke="#205b6d" stroke-width="6"/>
+    <path d="M210 302L230 263L239 273Z" fill="#f4fbfc"/>
+    <path d="M380 132L397 87L416 106L400 137Z" fill="#48c5d1" stroke="#205b6d" stroke-width="6"/>
+    <path d="M398 114L443 98L424 138L391 141Z" fill="#69dce3" stroke="#205b6d" stroke-width="6"/>
+    <path d="M398 114L416 106" stroke="#f0ffff" stroke-width="5"/>
+  </g>
+</svg>

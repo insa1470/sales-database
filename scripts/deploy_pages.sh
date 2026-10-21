@@ -18,9 +18,16 @@ public_files=(
   canton140.js
   canton140.json
   _worker.js
+  manifest-v1.webmanifest
+  _headers
+  assets/hunter-hub-target-v1.svg
+  assets/hunter-hub-icon-180-v1.png
+  assets/hunter-hub-icon-192-v1.png
+  assets/hunter-hub-icon-512-v1.png
 )
 
 for file in "${public_files[@]}"; do
+  mkdir -p "$(dirname "$stage_dir/$file")"
   cp "$project_root/$file" "$stage_dir/$file"
 done
 
