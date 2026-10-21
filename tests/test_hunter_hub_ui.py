@@ -23,11 +23,22 @@ class HunterHubCantonUITests(unittest.TestCase):
         self.assertIn("currentCombo.key !== 'canton140_hedging'", HTML)
 
     def test_canton_mobile_rows_use_compact_badges(self):
-        self.assertIn("canton-row", HTML)
+        self.assertIn("compact-row", HTML)
         self.assertIn("full-badges", HTML)
         self.assertIn("compact-badges", HTML)
         self.assertIn("max-width: 600px", HTML)
         self.assertIn("Canton140.compactCantonBadges", HTML)
+
+    def test_my_list_home_preview_has_names_without_badges(self):
+        start = HTML.index("function renderMyListHome()")
+        end = HTML.index("function enterMyList()", start)
+        home_preview = HTML[start:end]
+        self.assertNotIn("mylist-row-badge", home_preview)
+        self.assertNotIn("scaleBadge(d.scale)", home_preview)
+
+    def test_my_list_mobile_rows_use_compact_badges(self):
+        self.assertIn("Canton140.compactMyListBadges", HTML)
+        self.assertIn("currentCombo?.key==='my_list'", HTML)
 
 
 if __name__ == "__main__":

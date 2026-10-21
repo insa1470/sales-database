@@ -106,7 +106,6 @@
     flex-shrink: 0; margin-left: 4px;
   }
   .mylist-row-name { font-size: 14px; flex: 1; color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mylist-row-badge { flex-shrink: 0; }
   .mylist-more { font-size: 13px; color: var(--label2); padding: 8px 14px 11px; }
   .mylist-empty { font-size: 14px; color: var(--label2); padding: 14px 14px; line-height: 1.5; }
 
@@ -181,15 +180,15 @@
   .full-badges { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .compact-badges { display: none; }
   @media (max-width: 600px) {
-    .canton-row .full-badges { display: none; }
-    .canton-row .compact-badges {
+    .compact-row .full-badges { display: none; }
+    .compact-row .compact-badges {
       display: flex;
       gap: 3px;
       align-items: center;
       flex-wrap: nowrap;
       justify-content: flex-end;
     }
-    .canton-row .compact-badges .badge { height: 17px; padding: 0 5px; font-size: 10px; white-space: nowrap; }
+    .compact-row .compact-badges .badge { height: 17px; padding: 0 5px; font-size: 10px; white-space: nowrap; }
   }
   .canton-data-note { font-size: 12px; line-height: 1.5; color: var(--label2); margin-top: 8px; }
   .combo-row.disabled { opacity: .55; }
@@ -1189,7 +1188,6 @@ function renderMyListHome() {
     return `<div class="mylist-row">
       <div class="mylist-row-dot" style="background:${getColor(d.name)}"></div>
       <div class="mylist-row-name">${d.name}</div>
-      <div class="mylist-row-badge">${scaleBadge(d.scale)}</div>
     </div>`;
   }).join('');
   const more = n > 3 ? `<div class="mylist-more">还有 ${n-3} 家 →</div>` : '';
@@ -1376,8 +1374,12 @@ function compactBadges(d) {
     phase:'badge-canton-phase',
     bonded:'badge-bonded',
     import:'badge-import',
+    hedge:'badge-hedge',
   };
-  return Canton140.compactCantonBadges(d,flagTypes)
+  const items=currentCombo?.key==='my_list'
+    ? Canton140.compactMyListBadges(d,flagTypes)
+    : Canton140.compactCantonBadges(d,flagTypes);
+  return items
     .map(item=>`<span class="badge ${classNames[item.kind]||''}">${escapeHtml(item.label)}</span>`)
     .join('');
 }
@@ -1522,7 +1524,7 @@ function renderRow(d) {
     trackBadge = `<span class="track-badge ${count>=2?'hot':'normal'}" style="margin-bottom:3px">${count>=2?'🔥 ':''}${count}人追踪中</span>`;
   }
   return `
-  <div class="list-row ${currentCombo?.key==='canton140_hedging'?'canton-row':''}" onclick="openSheet(${d.id})">
+  <div class="list-row ${['canton140_hedging','my_list'].includes(currentCombo?.key)?'compact-row':''}" onclick="openSheet(${d.id})">
     <div class="row-icon" style="background:${color}">${initials(d.name)}</div>
     <div class="row-body">
       <div class="row-title">${d.name}</div>
