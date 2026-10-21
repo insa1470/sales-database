@@ -178,6 +178,19 @@
   .badge-canton-phase   { background: rgba(0,122,255,.1); color: var(--blue); }
   .badge-canton-grade-a { background: rgba(52,199,89,.12); color: #1a9c3e; }
   .badge-canton-grade-b { background: rgba(255,149,0,.14); color: #b66a00; }
+  .full-badges { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .compact-badges { display: none; }
+  @media (max-width: 600px) {
+    .canton-row .full-badges { display: none; }
+    .canton-row .compact-badges {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+    }
+    .canton-row .compact-badges .badge { height: 17px; padding: 0 5px; font-size: 10px; white-space: nowrap; }
+  }
   .canton-data-note { font-size: 12px; line-height: 1.5; color: var(--label2); margin-top: 8px; }
   .combo-row.disabled { opacity: .55; }
 
@@ -1353,6 +1366,21 @@ function badges(d) {
   b += scaleBadge(d.scale);
   return b;
 }
+function compactBadges(d) {
+  const flagTypes=(flagsMap.get(d.id)||[]).map(flag=>flag.flag_type);
+  const classNames={
+    'flag-credit':'badge-flag-credit',
+    'flag-rejected':'badge-flag-rejected',
+    'flag-existing':'badge-flag-existing',
+    'grade-b':'badge-canton-grade-b',
+    phase:'badge-canton-phase',
+    bonded:'badge-bonded',
+    import:'badge-import',
+  };
+  return Canton140.compactCantonBadges(d,flagTypes)
+    .map(item=>`<span class="badge ${classNames[item.kind]||''}">${escapeHtml(item.label)}</span>`)
+    .join('');
+}
 function scaleBadge(s) {
   if (!s) return '';
   const cls = s.startsWith('L')?'badge-scale-L':s.startsWith('M')?'badge-scale-M':s.startsWith('XS')?'badge-scale-XS':'badge-scale-S';
@@ -1494,7 +1522,7 @@ function renderRow(d) {
     trackBadge = `<span class="track-badge ${count>=2?'hot':'normal'}" style="margin-bottom:3px">${count>=2?'🔥 ':''}${count}人追踪中</span>`;
   }
   return `
-  <div class="list-row" onclick="openSheet(${d.id})">
+  <div class="list-row ${currentCombo?.key==='canton140_hedging'?'canton-row':''}" onclick="openSheet(${d.id})">
     <div class="row-icon" style="background:${color}">${initials(d.name)}</div>
     <div class="row-body">
       <div class="row-title">${d.name}</div>
@@ -1502,7 +1530,8 @@ function renderRow(d) {
     </div>
     <div class="row-right">
       ${trackBadge}
-      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${badges(d)}</div>
+      <div class="full-badges">${badges(d)}</div>
+      <div class="compact-badges">${compactBadges(d)}</div>
     </div>
     <span class="row-chevron">›</span>
   </div>`;

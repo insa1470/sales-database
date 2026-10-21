@@ -22,6 +22,13 @@ class HunterHubCantonUITests(unittest.TestCase):
     def test_canton_list_keeps_flagged_companies_visible(self):
         self.assertIn("currentCombo.key !== 'canton140_hedging'", HTML)
 
+    def test_canton_mobile_rows_use_compact_badges(self):
+        self.assertIn("canton-row", HTML)
+        self.assertIn("full-badges", HTML)
+        self.assertIn("compact-badges", HTML)
+        self.assertIn("max-width: 600px", HTML)
+        self.assertIn("Canton140.compactCantonBadges", HTML)
+
 
 if __name__ == "__main__":
     unittest.main()
