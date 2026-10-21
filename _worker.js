@@ -38,6 +38,9 @@ async function handleAPI(request, env, url) {
     if (/^\/api\/list\/\d+$/.test(pathname) && method === 'GET') return await listGet(pathname, env);
     if (pathname === '/api/admin/overview'   && method === 'GET')   return await adminOverview(request, env);
     if (pathname === '/api/companies/claimed' && method === 'GET')  return await companiesClaimed(env);
+    if (pathname === '/api/activity'      && method === 'GET')    return await activity(env);
+    if (pathname === '/api/flag'          && method === 'POST')   return await flagAdd(request, env);
+    if (pathname === '/api/flag'          && method === 'DELETE') return await flagRemove(request, env);
 
     return res({ error: 'Not found' }, 404);
   } catch (e) {
@@ -164,6 +167,80 @@ async function companiesClaimed(env) {
     .prepare('SELECT DISTINCT company_id FROM user_lists')
     .all();
   return res({ claimed: rows.results.map(r => r.company_id) });
+}
+
+// ─────────────────────────────────────────
+// GET /api/activity
+// 回傳追蹤統計 + 標記清單
+// ─────────────────────────────────────────
+async function activity(env) {
+  const tracking = await env.DB
+    .prepare(`
+      SELECT company_id, company_name, COUNT(*) as count
+      FROM user_lists
+      GROUP BY company_id
+      ORDER BY count DESC, MAX(added_at) DESC
+      LIMIT 30
+    `)
+    .all();
+
+  const flags = await env.DB
+    .prepare(`
+      SELECT f.company_id, f.company_name, f.flag_type, f.note, f.created_at,
+             f.user_id, u.name as user_name
+      FROM company_flags f
+      JOIN users u ON f.user_id = u.id
+      ORDER BY f.created_at DESC
+    `)
+    .all();
+
+  return res({ tracking: tracking.results, flags: flags.results });
+}
+
+// ─────────────────────────────────────────
+// POST /api/flag
+// body: { user_id, company_id, company_name, flag_type, note? }
+// ─────────────────────────────────────────
+async function flagAdd(request, env) {
+  const { user_id, company_id, company_name, flag_type, note } = await request.json().catch(() => ({}));
+  if (!user_id || company_id == null || !flag_type) return res({ error: '缺少參數' }, 400);
+
+  await env.DB
+    .prepare(`
+      INSERT INTO company_flags (company_id, company_name, user_id, flag_type, note)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(company_id, user_id) DO UPDATE SET
+        flag_type  = excluded.flag_type,
+        note       = excluded.note,
+        created_at = datetime('now')
+    `)
+    .bind(company_id, company_name || '', user_id, flag_type, note || null)
+    .run();
+
+  return res({ ok: true });
+}
+
+// ─────────────────────────────────────────
+// DELETE /api/flag
+// body: { user_id, company_id }
+// 管理員或原始標記者才可移除
+// ─────────────────────────────────────────
+async function flagRemove(request, env) {
+  const { user_id, company_id, target_user_id } = await request.json().catch(() => ({}));
+  if (!user_id || company_id == null) return res({ error: '缺少參數' }, 400);
+
+  const caller = await env.DB
+    .prepare('SELECT is_admin FROM users WHERE id = ?')
+    .bind(user_id).first();
+
+  // 管理員可透過 target_user_id 移除任何人的標記；一般用戶只能移除自己的
+  const removeId = (caller?.is_admin && target_user_id) ? target_user_id : user_id;
+
+  await env.DB
+    .prepare('DELETE FROM company_flags WHERE company_id = ? AND user_id = ?')
+    .bind(company_id, removeId).run();
+
+  return res({ ok: true });
 }
 
 function cors() {

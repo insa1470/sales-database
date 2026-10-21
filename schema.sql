@@ -21,3 +21,17 @@ CREATE TABLE IF NOT EXISTS user_lists (
 
 CREATE INDEX IF NOT EXISTS idx_user_lists_user ON user_lists(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_lists_company ON user_lists(company_id);
+
+CREATE TABLE IF NOT EXISTS company_flags (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id   INTEGER NOT NULL,
+  company_name TEXT    NOT NULL DEFAULT '',
+  user_id      INTEGER NOT NULL,
+  flag_type    TEXT    NOT NULL,
+  note         TEXT,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (company_id, user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_company_flags_company ON company_flags(company_id);

@@ -410,6 +410,61 @@
     font-size: 14px; font-weight: 500; color: var(--label2); cursor: pointer;
     width: 100%;
   }
+
+  /* ════ 團隊動態 ════ */
+  .activity-row {
+    display: flex; align-items: center;
+    padding: 11px 14px; gap: 10px;
+    cursor: pointer; position: relative; transition: background .1s;
+  }
+  .activity-row:active { background: var(--fill); }
+  .activity-row + .activity-row::before {
+    content: ''; position: absolute;
+    top: 0; left: 14px; right: 0; height: .5px; background: var(--separator);
+  }
+  .activity-name { flex: 1; font-size: 15px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 12px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+  .track-badge.hot    { background: rgba(255,59,48,.12);  color: var(--red); }
+  .track-badge.normal { background: var(--fill2); color: var(--label2); }
+
+  /* 標記 badge（列表用）*/
+  .badge-flag-credit   { background: rgba(255,59,48,.12);  color: var(--red); }
+  .badge-flag-rejected { background: rgba(255,149,0,.12);  color: var(--orange); }
+  .badge-flag-existing { background: rgba(60,60,67,.1);    color: var(--label2); }
+
+  /* 詳情 sheet 標記狀態卡 */
+  .flag-status-card { margin: 16px 16px 0; border-radius: var(--radius-lg); padding: 13px 14px; }
+  .flag-status-card.credit   { background: rgba(255,59,48,.08); }
+  .flag-status-card.rejected { background: rgba(255,149,0,.08); }
+  .flag-status-card.existing { background: rgba(60,60,67,.06); }
+  .flag-status-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .flag-status-meta  { font-size: 12px; color: var(--label2); line-height: 1.5; }
+  .flag-remove-btn { display: block; width: 100%; margin-top: 10px; height: 36px; border-radius: 8px; border: none; background: rgba(0,0,0,.06); font-family: inherit; font-size: 14px; color: var(--label2); cursor: pointer; }
+  .flag-remove-btn:active { background: rgba(0,0,0,.1); }
+
+  /* 標記按鈕 */
+  .flag-open-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin: 16px 16px 0; height: 44px; border-radius: var(--radius-lg);
+    border: 1.5px solid rgba(255,59,48,.3); font-family: inherit;
+    font-size: 15px; font-weight: 600; background: rgba(255,59,48,.06);
+    color: var(--red); cursor: pointer; width: calc(100% - 32px); transition: opacity .15s;
+  }
+  .flag-open-btn:active { opacity: .8; }
+
+  /* 標記選擇器 */
+  .flag-picker { margin: 12px 16px 0; }
+  .flag-picker-title { font-size: 12px; font-weight: 600; color: var(--label2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .flag-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .flag-chip { height: 34px; padding: 0 14px; border-radius: 17px; background: var(--fill); border: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer; transition: background .12s; }
+  .flag-chip.sel-credit   { background: rgba(255,59,48,.15);  color: var(--red); }
+  .flag-chip.sel-rejected { background: rgba(255,149,0,.15);  color: var(--orange); }
+  .flag-chip.sel-existing { background: rgba(60,60,67,.12);   color: var(--label); }
+  .flag-note { width: 100%; height: 56px; border-radius: 8px; border: 1.5px solid var(--separator); background: var(--bg); font-family: inherit; font-size: 14px; color: var(--label); padding: 8px 10px; outline: none; resize: none; margin-bottom: 8px; display: block; }
+  .flag-note:focus { border-color: var(--red); }
+  .flag-submit-btn { width: 100%; height: 44px; border-radius: var(--radius-lg); border: none; background: var(--red); color: white; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .flag-submit-btn:disabled { opacity: .35; cursor: default; }
+  .flag-submit-btn:not(:disabled):active { opacity: .8; }
 </style>
 </head>
 <body>
@@ -468,6 +523,9 @@
       </div>
       <div id="mylistPreview"></div>
     </div>
+
+    <!-- 團隊動態 -->
+    <div id="activitySection"></div>
 
     <!-- 本日推荐 -->
     <div id="recommendSection"></div>
@@ -571,7 +629,11 @@ const API_BASE = ''; // 同網域，空字串即可
 // ─── State ───
 let allData = [], filtered = [], page = 0;
 let myList    = [];          // server-synced，不寫 localStorage
-let claimedIds = new Set();  // 所有人名单中已有的 company_id
+let claimedIds = new Set();  // 所有人名單中已有的 company_id
+let trackingData = [];       // [{ company_id, company_name, count }]
+let flagsMap = new Map();    // company_id → { flag_type, note, user_id, user_name, created_at }
+let _selectedFlagType = null;
+let _shownHotIds = new Set(); // 首頁顯示的前6筆熱門 ID
 let currentUser = null;      // { id, name, is_admin }
 const PAGE_SIZE = 40;
 let searchQ = '';
@@ -668,11 +730,19 @@ async function loadUserList() {
 async function loadRecommendations() {
   if (!currentUser || !allData.length) return;
   try {
-    const r = await fetch(`${API_BASE}/api/companies/claimed`);
+    const r = await fetch(`${API_BASE}/api/activity`);
     const d = await r.json();
-    claimedIds = new Set(d.claimed || []);
-  } catch(e) { claimedIds = new Set(); }
+    trackingData = d.tracking || [];
+    claimedIds   = new Set(trackingData.map(t => t.company_id));
+    // 每家公司可能有多筆標記，groupBy company_id
+    flagsMap = new Map();
+    (d.flags || []).forEach(f => {
+      if (!flagsMap.has(f.company_id)) flagsMap.set(f.company_id, []);
+      flagsMap.get(f.company_id).push(f);
+    });
+  } catch(e) { trackingData = []; claimedIds = new Set(); flagsMap = new Map(); }
   renderRecommendations();
+  renderActivity();
 }
 
 // 日期為種子的 shuffle，每天結果不同但當天固定
@@ -703,7 +773,7 @@ function renderRecommendations() {
   // ── 1. 抢先机：高价值 & 尚未被任何人选 ──
   const highValueUnclaimed = shuffleSeeded(
     allData.filter(d =>
-      (d.is_bonded || d.hedging || d.in_import) && !claimedIds.has(d.id)
+      (d.is_bonded || d.hedging || d.in_import) && !claimedIds.has(d.id) && !isCompanyFlagged(d.id)
     ), seed
   );
   const rec1Show = highValueUnclaimed.slice(0, 5);
@@ -713,6 +783,7 @@ function renderRecommendations() {
   allData.forEach(d => {
     if (!d.district || d.district === '-' || myList.includes(d.id)) return;
     if (!(d.is_bonded || d.hedging || d.in_import)) return;
+    if (isCompanyFlagged(d.id)) return;
     if (!districtMap[d.district]) districtMap[d.district] = [];
     districtMap[d.district].push(d);
   });
@@ -722,13 +793,13 @@ function renderRecommendations() {
 
   // ── 3. 高命中率：同時符合 2+ 條件 ──
   const multiHit = allData.filter(d => {
-    if (myList.includes(d.id)) return false;
+    if (myList.includes(d.id) || isCompanyFlagged(d.id)) return false;
     return [(d.is_bonded||false),(d.hedging||false),(d.in_import||false)].filter(Boolean).length >= 2;
   });
 
   // ── 4. 供應鏈 + 套保 ──
   const supplyHedge = allData.filter(d =>
-    d.source === '供应链' && d.hedging && !myList.includes(d.id)
+    d.source === '供应链' && d.hedging && !myList.includes(d.id) && !isCompanyFlagged(d.id)
   );
 
   // ── 渲染（順序：💰 → 🔗 → 📍）──
@@ -858,6 +929,188 @@ function enterRec(type) {
   }
 }
 
+// 判斷某公司是否已進入信息交流區
+function isCompanyFlagged(companyId) {
+  return (flagsMap.get(companyId) || []).length > 0;
+}
+
+const FLAG_CFG = {
+  credit:   { icon: '❌', label: '总部曾婉拒', cls: 'credit' },
+  rejected: { icon: '🤝', label: '已合作',    cls: 'rejected' },
+  existing: { icon: '💬', label: '其他原因',  cls: 'existing' },
+};
+
+// ════ 團隊動態 ════
+function renderActivity() {
+  const section = document.getElementById('activitySection');
+  if (!section) return;
+
+  // 排除已進入信息交流區的公司
+  const activeTracking = trackingData.filter(t => !isCompanyFlagged(t.company_id));
+  const hot6 = activeTracking.filter(t => t.count >= 2).slice(0, 6);
+  _shownHotIds = new Set(hot6.map(t => t.company_id));
+  const otherCount = activeTracking.length - hot6.length;
+
+  // 取得所有有標記的公司（去重）
+  const flaggedCompanies = [...flagsMap.entries()].filter(([,arr]) => arr.length > 0);
+
+  if (!activeTracking.length && !flaggedCompanies.length) { section.innerHTML = ''; return; }
+
+  let html = `
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+      <div class="section-label" style="margin-bottom:0">团队动态</div>
+      <div style="font-size:12px;color:var(--label2)">共 ${activeTracking.length} 笔　热门 ${hot6.length} 笔</div>
+    </div>`;
+
+  if (activeTracking.length) {
+    html += '<div class="combo-group" style="margin-bottom:20px">';
+    if (hot6.length) {
+      html += hot6.map(t => `
+        <div class="activity-row" onclick="openSheet(${t.company_id})">
+          <div class="activity-name">${t.company_name}</div>
+          <span class="track-badge hot">🔥 ${t.count}人追踪中</span>
+          <span class="combo-chevron">›</span>
+        </div>`).join('');
+    }
+    html += `
+      <div class="activity-row" onclick="enterOtherTracking()">
+        <div class="activity-name" style="color:var(--blue)">查看其他追踪名单</div>
+        <span style="font-size:13px;color:var(--label3);flex-shrink:0">${otherCount} 家</span>
+        <span class="combo-chevron" style="color:var(--blue)">›</span>
+      </div>`;
+    html += '</div>';
+  }
+
+  if (flaggedCompanies.length) {
+    html += '<div class="section-label" style="margin-top:-8px">信息交流区</div>';
+    html += '<div class="combo-group" style="margin-bottom:20px">';
+    html += flaggedCompanies.map(([companyId, flags]) => {
+      const name = flags[0].company_name;
+      // 每種 flag_type 顯示一個 badge
+      const uniqueTypes = [...new Set(flags.map(f => f.flag_type))];
+      const badgesHtml = uniqueTypes.map(t => {
+        const cfg = FLAG_CFG[t] || { icon: '⚠️', label: t, cls: 'credit' };
+        return `<span class="badge badge-flag-${t}">${cfg.icon} ${cfg.label}</span>`;
+      }).join(' ');
+      return `
+        <div class="activity-row" onclick="openSheet(${companyId})">
+          <div class="activity-name">${name}</div>
+          <div style="display:flex;gap:4px;flex-shrink:0">${badgesHtml}</div>
+          <span class="combo-chevron">›</span>
+        </div>`;
+    }).join('');
+    html += '</div>';
+  }
+
+  section.innerHTML = html;
+}
+
+// ════ 標記功能 ════
+function buildFlagSection(d) {
+  const allFlags = flagsMap.get(d.id) || [];
+  const myFlag   = allFlags.find(f => f.user_id === currentUser?.id);
+  let html = '';
+
+  // 所有人的標記記錄
+  if (allFlags.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">注意记录</div><div class="detail-group">`;
+    html += allFlags.map(f => {
+      const cfg = FLAG_CFG[f.flag_type] || { icon: '⚠️', label: f.flag_type };
+      return `<div class="detail-row">
+        <div class="detail-row-label" style="width:88px">${cfg.icon} ${cfg.label}</div>
+        <div class="detail-row-value">${f.user_name}<br><span style="color:var(--label2);font-size:12px">${(f.created_at||'').slice(0,10)}${f.note ? ' · ' + f.note : ''}</span></div>
+      </div>`;
+    }).join('');
+    html += '</div></div>';
+  }
+
+  // 我的操作區
+  if (myFlag) {
+    const cfg = FLAG_CFG[myFlag.flag_type] || FLAG_CFG.credit;
+    html += `
+      <div class="flag-status-card ${cfg.cls}">
+        <div class="flag-status-title">${cfg.icon} 你已标记：${cfg.label}</div>
+        ${myFlag.note ? `<div style="font-size:13px;color:var(--label);margin-top:4px">${myFlag.note}</div>` : ''}
+        <button class="flag-remove-btn" onclick="removeFlag(${d.id})">移除我的标记</button>
+      </div>`;
+  } else {
+    html += `
+      <button class="flag-open-btn" id="flagOpenBtn" onclick="openFlagPicker(${d.id})">
+        ⚠️ 标记此客户
+      </button>
+      <div id="flagPicker"></div>`;
+  }
+  return html;
+}
+
+function openFlagPicker(companyId) {
+  const btn    = document.getElementById('flagOpenBtn');
+  const picker = document.getElementById('flagPicker');
+  if (!btn || !picker) return;
+  btn.style.display = 'none';
+  _selectedFlagType = null;
+  picker.innerHTML = `
+    <div class="flag-picker">
+      <div class="flag-picker-title">选择标记原因</div>
+      <div class="flag-chips">
+        <button class="flag-chip" onclick="selectFlagType(this,'credit')">❌ 总部曾婉拒</button>
+        <button class="flag-chip" onclick="selectFlagType(this,'rejected')">🤝 已合作</button>
+        <button class="flag-chip" onclick="selectFlagType(this,'existing')">💬 其他原因</button>
+      </div>
+      <textarea class="flag-note" id="flagNote" placeholder="备注（可选）"></textarea>
+      <button class="flag-submit-btn" id="flagSubmitBtn" disabled
+        onclick="submitFlag(${companyId})">确认标记</button>
+    </div>`;
+}
+
+function selectFlagType(btn, type) {
+  _selectedFlagType = type;
+  document.querySelectorAll('#flagPicker .flag-chip').forEach(b => b.className = 'flag-chip');
+  btn.className = `flag-chip sel-${type}`;
+  const s = document.getElementById('flagSubmitBtn');
+  if (s) s.disabled = false;
+}
+
+async function submitFlag(companyId) {
+  if (!_selectedFlagType || !currentUser) return;
+  const companyName = allData.find(x => x.id === companyId)?.name || '';
+  const note = (document.getElementById('flagNote')?.value || '').trim();
+  try {
+    await fetch(`${API_BASE}/api/flag`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id, company_id: companyId,
+        company_name: companyName, flag_type: _selectedFlagType, note: note || null })
+    });
+    // 更新本地 flagsMap（移除自己舊的，加入新的）
+    const existing = (flagsMap.get(companyId) || []).filter(f => f.user_id !== currentUser.id);
+    existing.push({ company_id: companyId, company_name: companyName,
+      flag_type: _selectedFlagType, note, user_id: currentUser.id,
+      user_name: currentUser.name, created_at: new Date().toISOString() });
+    flagsMap.set(companyId, existing);
+    _selectedFlagType = null;
+    openSheet(companyId);
+    renderActivity();
+  } catch(e) { alert('標記失敗，請重試'); }
+}
+
+async function removeFlag(companyId) {
+  if (!currentUser) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/flag`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id, company_id: companyId })
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    // 移除本地自己的標記
+    const updated = (flagsMap.get(companyId) || []).filter(f => f.user_id !== currentUser.id);
+    if (updated.length) flagsMap.set(companyId, updated);
+    else flagsMap.delete(companyId);
+    openSheet(companyId);
+    renderActivity();
+  } catch(e) { alert('移除失敗，請重試'); }
+}
+
 async function toggleMyList(id) {
   if (!currentUser) return;
   const inList = myList.includes(id);
@@ -921,8 +1174,19 @@ function renderMyListHome() {
 
 function enterMyList() {
   if (!myList.length) return;
-  currentCombo = { label:'我的名单', filter: d => myList.includes(d.id) };
+  currentCombo = { key:'my_list', label:'我的名单', filter: d => myList.includes(d.id) };
   showListView('我的名单');
+}
+
+function enterOtherTracking() {
+  currentCombo = {
+    key: 'other_tracking',
+    label: '其他追踪名单',
+    filter: d => trackingData.some(t => t.company_id === d.id)
+              && !_shownHotIds.has(d.id)
+              && !isCompanyFlagged(d.id)
+  };
+  showListView('其他追踪名单');
 }
 
 // ════ ADMIN VIEW ════
@@ -1039,15 +1303,17 @@ const SOURCE_STATS = [
   { label:'深圳民企',  num: 414, color:'#34C759', key:'shenzhen'  },
   { label:'贸易代理',  num: 436, color:'#FF9500', key:'trade'     },
   { label:'批发业',    num: 281, color:'#5AC8FA', key:'wholesale' },
+  { label:'电子分销',  num: 734, color:'#FF2D55', key:'elecdist'  },
 ];
 
 const COMBOS = [
-  { key:'供应链+套保',   label:'供应链 ＋ 套保名单',        sub:'需求已验证，重点争取转行',         icon:'⭐', bg:'#F5EEFF', filter: d=>d.source==='供应链'  && d.hedging   },
-  { key:'供应链+进出口', label:'供应链 ＋ 深圳民企进出口',   sub:'两份名单同时出现，高价值目标',     icon:'🔗', bg:'#E8F4FF', filter: d=>d.source==='供应链'  && d.in_import },
-  { key:'批发+进出口',   label:'批发业 ＋ 深圳民企进出口',   sub:'两份名单同时出现，进出口需求实证', icon:'📦', bg:'#FFF4E5', filter: d=>d.source==='批发业'  && d.in_import },
-  { key:'贸易代理+套保', label:'贸易代理 ＋ 套保名单',       sub:'代理业务涉及外汇，已有套保意识',   icon:'🤝', bg:'#E8FFF0', filter: d=>d.source==='贸易代理'&& d.hedging   },
-  { key:'套保名单',      label:'套保名单客户',               sub:'全部套保名单，共 94 家在本库中',   icon:'🏦', bg:'#F5EEFF', filter: d=>d.hedging },
-  { key:'全部',          label:'全部名单',                   sub:'浏览全部 1,741 家（不含套保筛选）',icon:'📋', bg:'#F2F2F7', filter: ()=>true },
+  { key:'供应链+套保',    label:'供应链 ＋ 套保名单',        sub:'需求已验证，重点争取转行',           icon:'⭐', bg:'#F5EEFF', filter: d=>d.source==='供应链'   && d.hedging   },
+  { key:'供应链+进出口',  label:'供应链 ＋ 深圳民企进出口',   sub:'两份名单同时出现，高价值目标',       icon:'🔗', bg:'#E8F4FF', filter: d=>d.source==='供应链'   && d.in_import },
+  { key:'批发+进出口',    label:'批发业 ＋ 深圳民企进出口',   sub:'两份名单同时出现，进出口需求实证',   icon:'📦', bg:'#FFF4E5', filter: d=>d.source==='批发业'   && d.in_import },
+  { key:'贸易代理+套保',  label:'贸易代理 ＋ 套保名单',       sub:'代理业务涉及外汇，已有套保意识',     icon:'🤝', bg:'#E8FFF0', filter: d=>d.source==='贸易代理' && d.hedging   },
+  { key:'电子分销+套保',  label:'电子分销 ＋ 套保名单',        sub:'同时出现在套保名单，外汇需求已验证的精华',   icon:'🔥', bg:'#FFF0F5', filter: d=>d.source==='电子分销' && d.hedging && d.in_import },
+  { key:'套保名单',       label:'套保名单客户',               sub:'全部套保名单，共 94 家在本库中',     icon:'🏦', bg:'#F5EEFF', filter: d=>d.hedging },
+  { key:'全部',           label:'全部名单',                   sub:'浏览全部 2,475 家企业',              icon:'📋', bg:'#F2F2F7', filter: ()=>true },
 ];
 
 const PALETTE = ['#007AFF','#34C759','#FF9500','#AF52DE','#5AC8FA','#FF2D55','#5856D6','#00C7BE'];
@@ -1056,6 +1322,12 @@ function initials(n) { return n ? n.slice(0,2) : '??'; }
 
 function badges(d) {
   let b = '';
+  const flags = flagsMap.get(d.id);
+  if (flags?.length) {
+    const types = [...new Set(flags.map(f => f.flag_type))];
+    const lbl = { credit:'❌婉拒', rejected:'🤝合作', existing:'💬其他' };
+    types.forEach(t => { b += `<span class="badge badge-flag-${t}">${lbl[t] || '⚠️'}</span>`; });
+  }
   if (d.is_bonded)           b += `<span class="badge badge-bonded">保税区</span>`;
   else if (d.in_import)      b += `<span class="badge badge-import">进出口信用</span>`;
   if (d.hedging)             b += `<span class="badge badge-hedge">套保</span>`;
@@ -1107,6 +1379,7 @@ function enterSource(key) {
     shenzhen:  { label:'深圳民企',  filter: d=>d.source==='深圳民企' },
     trade:     { label:'贸易代理',  filter: d=>d.source==='贸易代理' },
     wholesale: { label:'批发业',    filter: d=>d.source==='批发业' },
+    elecdist:  { label:'电子分销',  filter: d=>d.source==='电子分销' },
   };
   currentCombo = map[key];
   showListView(map[key].label);
@@ -1136,7 +1409,7 @@ function goHome() {
   ['listView','adminView'].forEach(v => document.getElementById(v).classList.remove('active'));
   document.getElementById('homeView').classList.add('active');
   document.getElementById('navBack').classList.remove('show');
-  document.getElementById('navTitle').textContent = '营销数据库';
+  document.getElementById('navTitle').textContent = 'Hunter Hub';
   document.getElementById('navSubtitle').textContent = '';
   document.getElementById('searchBar').style.display = 'none';
   document.getElementById('fabBtn').classList.remove('show');
@@ -1150,12 +1423,18 @@ function applyFilters() {
   const q = searchQ.toLowerCase();
   filtered = allData.filter(d => {
     if (!currentCombo.filter(d)) return false;
+    // 我的名单保留標記公司；其他列表一律排除
+    if (currentCombo.key !== 'my_list' && isCompanyFlagged(d.id)) return false;
     if (activeF.city.length     && !activeF.city.includes(d.city))         return false;
     if (activeF.district.length && !activeF.district.includes(d.district)) return false;
     if (activeF.scale.length    && !activeF.scale.includes(d.scale))       return false;
     if (q && !d.name.toLowerCase().includes(q) && !d.legal_rep.toLowerCase().includes(q) && !(d.city+d.district).includes(q)) return false;
     return true;
   });
+  if (currentCombo?.key === 'other_tracking') {
+    const countMap = new Map(trackingData.map(t => [t.company_id, t.count]));
+    filtered.sort((a, b) => (countMap.get(b.id) || 0) - (countMap.get(a.id) || 0));
+  }
   page = 0; renderList(true); renderScopeChips(); updateFab();
 }
 
@@ -1181,6 +1460,11 @@ function renderRow(d) {
   const color=getColor(d.name);
   const loc=[d.city, d.district&&d.district!=='-'?d.district:null].filter(Boolean).join(' ');
   const sub=[loc, d.phone?d.phone.slice(0,11):null].filter(Boolean).join('　');
+  let trackBadge = '';
+  if (currentCombo?.key === 'other_tracking') {
+    const count = trackingData.find(t => t.company_id === d.id)?.count || 0;
+    trackBadge = `<span class="track-badge ${count>=2?'hot':'normal'}" style="margin-bottom:3px">${count>=2?'🔥 ':''}${count}人追踪中</span>`;
+  }
   return `
   <div class="list-row" onclick="openSheet(${d.id})">
     <div class="row-icon" style="background:${color}">${initials(d.name)}</div>
@@ -1189,6 +1473,7 @@ function renderRow(d) {
       <div class="row-sub">${sub||'—'}</div>
     </div>
     <div class="row-right">
+      ${trackBadge}
       <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${badges(d)}</div>
     </div>
     <span class="row-chevron">›</span>
@@ -1223,6 +1508,7 @@ function openSheet(id) {
       onclick="toggleMyList(${d.id})" style="margin-top:16px">
       ${myList.includes(d.id)?'✓ 已在名单中　点击移除':'＋ 加入我的名单'}
     </button>
+    ${buildFlagSection(d)}
     <div class="pitch-card ${pitch.cls}">
       <div class="pitch-card-title">💬 ${pitch.title}</div>
       <div class="pitch-card-text">"${pitch.text}"</div>
@@ -1251,7 +1537,7 @@ function openSheet(id) {
   document.body.style.overflow='hidden';
 }
 function row(label,val){if(!val)return '';return `<div class="detail-row"><div class="detail-row-label">${label}</div><div class="detail-row-value">${val}</div></div>`;}
-function closeSheet(){document.getElementById('overlay').classList.remove('show');document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';}
+function closeSheet(){document.getElementById('overlay').classList.remove('show');document.getElementById('sheet').classList.remove('show');document.body.style.overflow='';_selectedFlagType=null;}
 
 // ─── Filter sheet ───
 function buildFChips() {
