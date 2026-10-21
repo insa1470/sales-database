@@ -458,6 +458,7 @@ assert.equal(canton.filter(row => row.match_grade === 'B').length, 6);
 assert.equal(canton.filter(row => row.city).length, 285);
 assert.equal(canton.filter(row => row.capital).length, 285);
 assert.equal(new Set(merged.map(row => row.id)).size, merged.length);
+assert.equal(new Set(canton.map(row => normalizeCompanyName(row.name))).size, canton.length);
 ```
 
 Run:
