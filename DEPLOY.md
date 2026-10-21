@@ -3,8 +3,10 @@
 ## 部署指令（每次改完代码后执行）
 
 ```bash
-~/.nvm/versions/node/v24.14.1/bin/node ~/.nvm/versions/node/v24.14.1/bin/wrangler pages deploy /Users/insahung/Documents/10_進行中專案/業務系統/行銷資料庫 --project-name=sales-database --branch=main
+bash scripts/deploy_pages.sh
 ```
+
+部署脚本使用公开文件白名单，只上传网站运行所需的 5 个文件。不要直接上传整个项目目录，避免原始 Excel、CSV、测试或内部文件公开。
 
 ---
 
@@ -35,7 +37,7 @@
 
 ### 下次避免的方法
 
-**每次改完代码，直接执行上方的部署指令**，不要依赖 GitHub 自动部署。
+**每次改完代码，直接执行上方的安全部署脚本**，不要依赖 GitHub 自动部署，也不要直接上传整个项目目录。
 
 ### 待改善（未来可做）
 - 在 Cloudflare Pages 连接 GitHub repo，实现 push 自动部署

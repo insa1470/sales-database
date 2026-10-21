@@ -8,9 +8,19 @@
  *   ADMIN_PASSWORD - 管理者密碼（設為 Secret）
  */
 
+const SENSITIVE_ASSET_PATTERN = /\.(?:xlsx?|csv)$/i;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // 原始試算表只供離線產製資料，絕不可由公開網站提供。
+    if (SENSITIVE_ASSET_PATTERN.test(url.pathname)) {
+      return new Response('Not found', {
+        status: 404,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    }
 
     if (url.pathname.startsWith('/api/')) {
       return handleAPI(request, env, url);
