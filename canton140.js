@@ -76,7 +76,7 @@
     return selectedPhases.some(phase => phases.includes(phase));
   }
 
-  function compactCantonBadges(company, flagTypes = []) {
+  function buildCompactBadges(company, flagTypes, includeHedging) {
     const items = [];
     const flagLabels = {
       credit: '婉拒',
@@ -103,8 +103,17 @@
 
     if (company?.is_bonded) items.push({ kind: 'bonded', label: '保税' });
     else if (company?.in_import) items.push({ kind: 'import', label: '进出口' });
+    if (includeHedging && company?.hedging) items.push({ kind: 'hedge', label: '套保' });
 
     return items.slice(0, 2);
+  }
+
+  function compactCantonBadges(company, flagTypes = []) {
+    return buildCompactBadges(company, flagTypes, false);
+  }
+
+  function compactMyListBadges(company, flagTypes = []) {
+    return buildCompactBadges(company, flagTypes, true);
   }
 
   return {
@@ -113,5 +122,6 @@
     cantonCity,
     matchesCantonPhase,
     compactCantonBadges,
+    compactMyListBadges,
   };
 });

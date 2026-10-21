@@ -6,6 +6,7 @@ const {
   cantonCity,
   matchesCantonPhase,
   compactCantonBadges,
+  compactMyListBadges,
 } = require('../canton140.js');
 
 test('normalizes legal punctuation without changing company text', () => {
@@ -80,5 +81,19 @@ test('shortens trade signals and hides redundant A grade and hedging badges', ()
   ]);
   assert.deepEqual(compactCantonBadges(bonded), [
     { kind: 'bonded', label: '保税' },
+  ]);
+});
+
+test('selects My List mobile badges with hedging as final priority', () => {
+  assert.deepEqual(compactMyListBadges({ hedging: true }), [
+    { kind: 'hedge', label: '套保' },
+  ]);
+  assert.deepEqual(compactMyListBadges({
+    in_import: true,
+    hedging: true,
+    canton140_info: { phase: ['第1期'], match_grade: 'B' },
+  }), [
+    { kind: 'grade-b', label: 'B' },
+    { kind: 'phase', label: '1期' },
   ]);
 });
