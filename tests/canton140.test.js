@@ -5,6 +5,7 @@ const {
   mergeCanton140Data,
   cantonCity,
   matchesCantonPhase,
+  compactCantonBadges,
 } = require('../canton140.js');
 
 test('normalizes legal punctuation without changing company text', () => {
@@ -41,4 +42,43 @@ test('rejects duplicate or conflicting ids', () => {
     () => mergeCanton140Data([{ id: 1, name: '甲公司' }], [{ id: 1, name: '另一家公司', phase: ['第1期'] }]),
     /id conflict/
   );
+});
+
+test('selects at most two compact mobile badges by priority', () => {
+  const company = {
+    in_import: true,
+    hedging: true,
+    scale: 'L(大型)',
+    canton140_info: { phase: ['第1期', '第3期'], match_grade: 'B' },
+  };
+
+  assert.deepEqual(compactCantonBadges(company, ['credit']), [
+    { kind: 'flag-credit', label: '婉拒' },
+    { kind: 'grade-b', label: 'B' },
+  ]);
+  assert.deepEqual(compactCantonBadges(company), [
+    { kind: 'grade-b', label: 'B' },
+    { kind: 'phase', label: '1/3期' },
+  ]);
+});
+
+test('shortens trade signals and hides redundant A grade and hedging badges', () => {
+  const importer = {
+    in_import: true,
+    hedging: true,
+    canton140_info: { phase: ['第2期'], match_grade: 'A' },
+  };
+  const bonded = {
+    is_bonded: true,
+    hedging: true,
+    canton140_info: { phase: [], match_grade: 'A' },
+  };
+
+  assert.deepEqual(compactCantonBadges(importer), [
+    { kind: 'phase', label: '2期' },
+    { kind: 'import', label: '进出口' },
+  ]);
+  assert.deepEqual(compactCantonBadges(bonded), [
+    { kind: 'bonded', label: '保税' },
+  ]);
 });

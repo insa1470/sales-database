@@ -76,5 +76,42 @@
     return selectedPhases.some(phase => phases.includes(phase));
   }
 
-  return { normalizeCompanyName, mergeCanton140Data, cantonCity, matchesCantonPhase };
+  function compactCantonBadges(company, flagTypes = []) {
+    const items = [];
+    const flagLabels = {
+      credit: '婉拒',
+      rejected: '合作',
+      existing: '其他',
+    };
+
+    for (const type of [...new Set(flagTypes)]) {
+      if (flagLabels[type]) items.push({ kind: `flag-${type}`, label: flagLabels[type] });
+    }
+
+    if (company?.canton140_info?.match_grade === 'B') {
+      items.push({ kind: 'grade-b', label: 'B' });
+    }
+
+    const phases = company?.canton140_info?.phase || [];
+    const phaseNumbers = phases
+      .map(phase => String(phase).match(/第(\d+)期/))
+      .filter(Boolean)
+      .map(match => match[1]);
+    if (phaseNumbers.length) {
+      items.push({ kind: 'phase', label: `${phaseNumbers.join('/')}期` });
+    }
+
+    if (company?.is_bonded) items.push({ kind: 'bonded', label: '保税' });
+    else if (company?.in_import) items.push({ kind: 'import', label: '进出口' });
+
+    return items.slice(0, 2);
+  }
+
+  return {
+    normalizeCompanyName,
+    mergeCanton140Data,
+    cantonCity,
+    matchesCantonPhase,
+    compactCantonBadges,
+  };
 });
